@@ -44,9 +44,13 @@ echo "2. DryTime 0 is rejected, so regen is always > 0 and 'if ( infil->regen > 
 e=$(grep -o "ERROR [0-9]*" "$work/d.rpt" | head -1 || true)
 echo "   drytime0.inp -> ${e:-no error}"
 echo
-if [ "${INF[cn100]}" = "${INF[cn99]}" ] && [ "${WRN[cn100]}" = 0 ] && \
-   [ "${INF[cn5]}" = "${INF[cn10]}" ] && [ "${WRN[cn5]}" = 0 ]; then
+same=0
+[ "${INF[cn100]}" = "${INF[cn99]}" ] && [ "${INF[cn5]}" = "${INF[cn10]}" ] && same=1
+if [ $same = 1 ] && [ "${WRN[cn100]}" = 0 ] && [ "${WRN[cn5]}" = 0 ]; then
   echo "REPRODUCED: CN 100 runs as CN 99 and CN 5 runs as CN 10, with no warning in the .rpt"
+elif [ $same = 1 ] && [ "${WRN[cn100]}" = 1 ] && [ "${WRN[cn5]}" = 1 ] && \
+     [ "${WRN[cn99]}" = 0 ] && [ "${WRN[cn10]}" = 0 ]; then
+  echo "FIXED: CN 100 and CN 5 each get one warning, CN 99 and CN 10 none; results unchanged"
 else
-  echo "NOT REPRODUCED: clamp now warns or behaves differently"
+  echo "NOT REPRODUCED: clamp results or warnings differ from both the old and the fixed engine"
 fi

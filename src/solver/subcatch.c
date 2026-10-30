@@ -379,6 +379,9 @@ void  subcatch_validate(int j)
     // --- validate subcatchment's groundwater component 
     gwater_validate(j);
 
+    // --- validate subcatchment's infiltration parameters
+    infil_validate(j);
+
     // --- validate placement of LIDs in the subcatchment
     nonLidArea -= Subcatch[j].lidArea;
 

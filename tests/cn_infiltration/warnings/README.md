@@ -41,3 +41,17 @@ warnings only: **no change to any computed number**, so nrtest stays identical.
 - CN < 10 or > 99 writes a WARNING naming the subcatchment and the value used
 - the dead `regen > 0.0` test is removed, or DryTime = 0 is allowed to mean "no recovery"
   (that second choice changes results and belongs behind an option)
+
+## The fix (second commit on this branch)
+
+- `curvenum_setParams` keeps the Curve Number as entered in a new `CN` member of
+  `TCurveNum`; the clamping itself is unchanged.
+- A new `infil_validate(j)`, called from `subcatch_validate`, writes
+  `WARNING 13: Curve Number limited to the range 10 to 99 for Subcatchment <ID>`.
+  It runs during validation, so the warning lands with the other warnings, after
+  the title. It names the subcatchment; the range in the message shows what was used.
+- The always-true `if ( infil->regen > 0.0 )` test in `curvenum_getInfil` is removed;
+  the capacity reduction it guarded now runs unconditionally, exactly as before.
+
+`./run.sh` now prints FIXED on this branch and REPRODUCED on an unfixed engine
+(`./run.sh /path/to/old/swmm5`).

@@ -70,6 +70,7 @@ typedef struct
 //--------------------------
 typedef struct
 {
+   double        CN;              // Curve Number as entered
    double        Smax;            // max. infiltration capacity (ft)
    double        regen;           // infil. capacity regeneration constant (1/sec)
    double        Tmax;            // maximum inter-event time (sec)
@@ -96,6 +97,7 @@ extern TCurveNum* CNInfil;
 void    infil_create(int n);
 void    infil_delete(void);
 int     infil_readParams(int m, char* tok[], int ntoks);
+void    infil_validate(int j);
 void    infil_initState(int j);
 void    infil_getState(int j, double x[]);
 void    infil_setState(int j, double x[]);
