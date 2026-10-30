@@ -1,3 +1,5 @@
+> **Branch `exp-node_surfarea`.** An experiment on how dynamic wave routing gives conduit surface area to nodes, with ten run-time switchable modes. Start at [experiments/node-surfarea/README.md](experiments/node-surfarea/README.md). With the switch unset this branch reproduces EPA SWMM 5.2.4 exactly. The rest of this page is EPA's README.
+
 ORD Stormwater-Management-Model Solver
 ==================================
 

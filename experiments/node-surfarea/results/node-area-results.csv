@@ -1,0 +1,43 @@
+model,source,routing,lengthening_step,outfall_types,EPA 5.2.4 (mode 0),m1 manhole added+booked,m2 strict dV/dy all ends,m4 area from true length,m8 W(end)L/2 subcritical,m64 outfall share to interior,"m256 same, FREE/NORMAL only",m160 chord area + crown guard,m420 = 4+32+128+256,m512 book lengthened volume
+M10_surcharge_slot,synthetic,DYNWAVE,0,FREE,-0.060,-0.068,-0.078,-0.060,-0.078,-0.022,-0.022,-0.065,-0.016,-0.060
+M1_small_sewer,synthetic,DYNWAVE,0,FREE,-0.106,-0.109,-0.099,-0.106,-0.099,-0.032,-0.032,-0.096,-0.025,-0.106
+M2_drop_manholes,synthetic,DYNWAVE,0,FREE,-0.063,-0.067,-0.551,-0.063,-0.060,0.010,0.010,-0.060,0.012,-0.063
+M3_surcharge,synthetic,DYNWAVE,0,FREE,-0.188,-0.183,-0.113,-0.188,-0.113,-0.147,-0.147,-0.108,-0.073,-0.188
+M4_trunk,synthetic,DYNWAVE,0,FREE,-0.319,-0.330,-0.311,-0.319,-0.311,-0.136,-0.136,-0.246,-0.076,-0.319
+M5_short_lengthened,synthetic,DYNWAVE,10,FREE,0.187,0.186,0.000,-0.003,0.190,0.198,0.198,0.181,-0.020,-0.019
+M6_small_coarse_step,synthetic,DYNWAVE,0,FREE,-0.105,-0.108,-0.097,-0.105,-0.097,-0.033,-0.033,-0.103,-0.034,-0.105
+M7_trickle,synthetic,DYNWAVE,0,FREE,-0.368,-0.413,-0.338,-0.368,-0.338,-0.260,-0.260,-0.284,-0.194,-0.368
+M8_steep_drops,synthetic,DYNWAVE,0,FREE,-0.054,-0.057,-0.264,-0.054,-0.054,-0.021,-0.021,-0.053,-0.020,-0.054
+M9_coarse_lengthened,synthetic,DYNWAVE,20,FREE,0.054,0.046,-0.031,-0.034,0.058,0.100,0.100,0.043,-0.016,-0.054
+data__model_delayed_report,pyswmm,DYNWAVE,0,FREE,0.004,,,0.004,,0.004,0.004,0.002,0.002,0.004
+data__model_full_features,pyswmm,DYNWAVE,0,FREE,0.001,,,0.001,,0.001,0.001,0.001,0.001,0.001
+data__model_node_inflows,pyswmm,DYNWAVE,0,FREE,0.000,,,0.000,,0.000,0.000,0.000,0.000,0.000
+data__model_pump_setting,pyswmm,DYNWAVE,0,FREE,0.000,,,0.000,,0.000,0.000,0.000,0.000,0.000
+data__model_storage_pump,pyswmm,DYNWAVE,0,FREE,-0.002,,,-0.002,,0.000,0.000,-0.002,-0.000,-0.002
+data__model_storage_pump_MGD,pyswmm,DYNWAVE,0,FREE,-0.001,,,-0.001,,0.000,0.000,-0.002,-0.000,-0.001
+data__model_toolkit_units,pyswmm,DYNWAVE,0,FREE,0.000,,,0.000,,0.000,0.000,0.000,0.000,0.000
+data__model_weir_setting,pyswmm,DYNWAVE,0,FREE,0.004,,,0.004,,0.004,0.004,0.002,0.002,0.004
+data__model_weir_setting_a,pyswmm,DYNWAVE,0,FREE,0.004,,,0.004,,0.004,0.004,0.002,0.002,0.004
+extran__extran10,EPA nrtestsuite,DYNWAVE,0,FREE,0.131,,,0.131,,1.145,1.145,-0.034,1.022,0.131
+extran__extran2,EPA nrtestsuite,DYNWAVE,0,FIXED,-4.052,,,-4.052,,-2.045,-4.052,-4.389,-4.389,-4.052
+extran__extran3,EPA nrtestsuite,DYNWAVE,0,FREE,0.085,,,0.085,,0.097,0.097,0.115,0.089,0.085
+extran__extran4,EPA nrtestsuite,DYNWAVE,0,FREE,0.020,,,0.020,,0.089,0.089,0.107,0.154,0.020
+extran__extran5,EPA nrtestsuite,DYNWAVE,0,FREE,-0.205,,,-0.205,,-0.141,-0.141,-0.118,-0.071,-0.205
+extran__extran6,EPA nrtestsuite,DYNWAVE,0,FREE,-0.054,,,-0.054,,-0.032,-0.032,-0.130,-0.135,-0.054
+extran__extran7,EPA nrtestsuite,DYNWAVE,0,FREE,0.050,,,0.050,,0.097,0.097,0.132,0.146,0.050
+extran__extran8a,EPA nrtestsuite,DYNWAVE,0,FIXED,-0.982,,,-0.982,,0.401,-0.982,-2.047,-2.047,-0.982
+extran__extran9,EPA nrtestsuite,DYNWAVE,0,FREE,0.688,,,0.688,,0.688,0.688,0.688,0.688,0.688
+model_full_features,pyswmm,DYNWAVE,0,FREE,0.001,-0.008,0.001,0.001,0.001,0.001,0.001,0.001,0.001,0.001
+routing__test1,EPA nrtestsuite,DYNWAVE,0,FREE,-0.009,,,-0.009,,-0.010,-0.010,-0.011,-0.015,-0.009
+routing__test3,EPA nrtestsuite,DYNWAVE,0,FREE,-0.195,,,-0.195,,-0.045,-0.045,-0.165,-0.013,-0.195
+routing__test4,EPA nrtestsuite,DYNWAVE,0,FREE,0.353,,,0.353,,0.330,0.330,0.334,0.340,0.353
+routing__test5,EPA nrtestsuite,DYNWAVE,0,FREE,-0.014,,,-0.014,,-0.013,-0.013,0.003,0.003,-0.014
+swmm_example,pyswmm,KINWAVE,0,FREE,0.037,0.037,0.037,0.037,0.037,0.037,0.037,0.037,0.037,0.037
+update_v5111__bioretention,EPA nrtestsuite,DYNWAVE,0,FREE,0.000,,,0.000,,0.000,0.000,0.000,0.000,0.000
+update_v52__CoS-Reduced-Inlets,EPA nrtestsuite,DYNWAVE,2.0,FREE,0.240,,,0.241,,0.251,0.251,0.172,0.212,0.231
+update_v52__CoS-Reduced-Outlets,EPA nrtestsuite,DYNWAVE,2.0,FREE,0.258,,,0.254,,0.269,0.269,0.209,0.233,0.249
+user__user1,EPA nrtestsuite,DYNWAVE,0,FREE,0.089,,,0.089,,0.102,0.102,-0.026,0.011,0.089
+user__user2,EPA nrtestsuite,DYNWAVE,0,FIXED,0.285,,,0.285,,0.289,0.285,0.039,0.039,0.285
+user__user3,EPA nrtestsuite,DYNWAVE,0,FIXED,-0.013,,,-0.013,,0.017,-0.013,-0.008,-0.008,-0.013
+user__user4,EPA nrtestsuite,DYNWAVE,5,NORMAL,0.054,,,-0.026,,0.078,0.078,0.066,-0.028,-0.046
+user__user5,EPA nrtestsuite,DYNWAVE,0,FIXED,-2.352,,,-2.352,,5.002,-2.352,-3.401,-3.401,-2.352

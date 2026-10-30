@@ -1,0 +1,5 @@
+bin/
+downloads/
+models/
+runs/
+__pycache__/
