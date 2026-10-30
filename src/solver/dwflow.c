@@ -32,6 +32,7 @@
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include <math.h>
+#include <stdlib.h>
 #include "headers.h"
 
 static const  double MAXVELOCITY =  50.;     // max. allowable velocity (ft/sec)
@@ -39,6 +40,46 @@ static const  double MAXVELOCITY =  50.;     // max. allowable velocity (ft/sec)
 static int    getFlowClass(int link, double q, double h1, double h2,
               double y1, double y2, double* criticalDepth, double* normalDepth,
               double* fasnh);
+extern int NodeAreaMode;
+// --- NODE-AREA EXPERIMENT bit 32: chord (secant) area per conduit end
+static double *OldY1 = NULL, *OldY2 = NULL, *CurY1 = NULL, *CurY2 = NULL;
+static int     NAlloc = 0;
+static double getWidth(TXsect* xsect, double y);
+static double getSlotWidth(TXsect* xsect, double y);
+static double getArea(TXsect* xsect, double y, double wSlot);
+void dwflow_closeExperiment(void)  // called from dynwave_close
+{
+    FREE(OldY1); FREE(OldY2); FREE(CurY1); FREE(CurY2);
+    NAlloc = 0;
+}
+void dwflow_initExperiment(void)   // called once from dynwave_init
+{
+    dwflow_closeExperiment();
+    NAlloc = Nlinks[CONDUIT] > 0 ? Nlinks[CONDUIT] : 1;
+    OldY1 = (double*)calloc(NAlloc, sizeof(double));
+    OldY2 = (double*)calloc(NAlloc, sizeof(double));
+    CurY1 = (double*)calloc(NAlloc, sizeof(double));
+    CurY2 = (double*)calloc(NAlloc, sizeof(double));
+}
+static int isQOutfall(int n)
+{
+    int t;
+    if ( Node[n].type != OUTFALL ) return 0;
+    t = Outfall[Node[n].subIndex].type;
+    return ( t == FREE_OUTFALL || t == NORMAL_OUTFALL );
+}
+static double chordArea(TXsect* xsect, double yOld, double yNew)
+{
+    double aO, aN;
+    if ( fabs(yNew - yOld) < 1.0e-4 ) return getWidth(xsect, yNew);
+    // --- bit 128: keep the crown-cutoff tangent width near the crown
+    if ( (NodeAreaMode & 128) && !xsect_isOpen(xsect->type) &&
+         MAX(yOld, yNew) >= CrownCutoff * xsect->yFull )
+        return getWidth(xsect, yNew);
+    aO = getArea(xsect, yOld, getSlotWidth(xsect, yOld));
+    aN = getArea(xsect, yNew, getSlotWidth(xsect, yNew));
+    return (aN - aO) / (yNew - yOld);
+}
 static void   findSurfArea(int link, double q, double length, double* h1,
               double* h2, double* y1, double* y2);
 static double findLocalLosses(int link, double a1, double a2, double aMid,
@@ -135,6 +176,12 @@ void  dwflow_findConduitFlow(int j, int steps, double omega, double dt)
     // --- use Courant-modified length instead of conduit's actual length
     length = Conduit[k].modLength;
 
+    // --- NODE-AREA EXPERIMENT: track conduit end depths between steps
+    if ( (NodeAreaMode & 32) && steps == 0 )
+    {
+        OldY1[k] = CurY1[k]; OldY2[k] = CurY2[k];
+    }
+
     // --- find surface area contributions to upstream and downstream nodes
     //     based on previous iteration's flow estimate
     findSurfArea(j, qLast, length, &h1, &h2, &y1, &y2);
@@ -174,7 +221,8 @@ void  dwflow_findConduitFlow(int j, int steps, double omega, double dt)
         Link[j].dqdh  = GRAVITY * dt * aMid / length * barrels;
         Link[j].froude = 0.0;
         Link[j].newDepth = MIN(yMid, Link[j].xsect.yFull);
-        Link[j].newVolume = Conduit[k].a1 * link_getLength(j) * barrels;
+        Link[j].newVolume = Conduit[k].a1 * barrels *
+            ((NodeAreaMode & 512) ? Conduit[k].modLength : link_getLength(j));
         Link[j].newFlow = 0.0;
         return;
     }
@@ -288,7 +336,8 @@ void  dwflow_findConduitFlow(int j, int steps, double omega, double dt)
     aMid = (a1 + a2) / 2.0;
 //  aMid = MIN(aMid, xsect->aFull);  //Slot can have aMid > aFull 
     Conduit[k].fullState = link_getFullState(a1, a2, xsect->aFull);
-    Link[j].newVolume = aMid * link_getLength(j) * barrels;
+    Link[j].newVolume = aMid * barrels *
+        ((NodeAreaMode & 512) ? Conduit[k].modLength : link_getLength(j));
     Link[j].newFlow = q * barrels;
 }
 
@@ -543,8 +592,63 @@ void findSurfArea(int j, double q, double length, double* h1, double* h2,
         surfArea2 = surfArea1;
         break;
     }
+    // --- NODE-AREA EXPERIMENT: assign each end node the derivative of the
+    //     volume this routine books, V = L*(A(y1)+A(y2))/2, w.r.t. that
+    //     end's depth; an end whose depth is pinned (critical, dry) gets 0
+    if ( (NodeAreaMode & 2) && Link[j].flowClass != DRY )
+    {
+        double L = link_getLength(j);
+        int free1 = Link[j].flowClass != UP_CRITICAL &&
+                    Link[j].flowClass != UP_DRY;
+        int free2 = Link[j].flowClass != DN_CRITICAL &&
+                    Link[j].flowClass != DN_DRY;
+        surfArea1 = free1 ? getWidth(xsect, flowDepth1) * L / 2.0 : 0.0;
+        surfArea2 = free2 ? getWidth(xsect, flowDepth2) * L / 2.0 : 0.0;
+    }
+    else
+    {
+        // --- bit 8/16: end-width rule for SUBCRITICAL only (16 drops fasnh)
+        if ( (NodeAreaMode & 24) && Link[j].flowClass == SUBCRITICAL )
+        {
+            surfArea1 = getWidth(xsect, flowDepth1) * length / 2.0;
+            surfArea2 = getWidth(xsect, flowDepth2) * length / 2.0;
+            if ( !(NodeAreaMode & 16) ) surfArea2 *= fasnh;
+        }
+        // --- bit 32: chord area d(booked V)/dy over the step, free ends
+        if ( (NodeAreaMode & 32) && Link[j].flowClass == SUBCRITICAL )
+        {
+            int k = Link[j].subIndex;
+            surfArea1 = chordArea(xsect, OldY1[k], flowDepth1) * length / 2.0;
+            surfArea2 = chordArea(xsect, OldY2[k], flowDepth2) * length / 2.0;
+        }
+        // --- bit 4: area from true length, not Courant-modified length
+        if ( NodeAreaMode & 4 )
+        {
+            surfArea1 *= link_getLength(j) / length;
+            surfArea2 *= link_getLength(j) / length;
+        }
+    }
+    // --- bit 64: an outfall has no depth equation, so the outfall end's
+    //     share of a terminal conduit goes to the interior end node
+    if ( NodeAreaMode & 64 )
+    {
+        if ( Node[n2].type == OUTFALL ) { surfArea1 += surfArea2; surfArea2 = 0.0; }
+        else if ( Node[n1].type == OUTFALL ) { surfArea2 += surfArea1; surfArea1 = 0.0; }
+    }
+    // --- bit 256: as bit 64, but only for FREE / NORMAL outfalls, whose
+    //     depth is set by the conduit's own flow (not a given stage)
+    if ( NodeAreaMode & 256 )
+    {
+        if ( isQOutfall(n2) ) { surfArea1 += surfArea2; surfArea2 = 0.0; }
+        else if ( isQOutfall(n1) ) { surfArea2 += surfArea1; surfArea1 = 0.0; }
+    }
     Link[j].surfArea1 = surfArea1;
     Link[j].surfArea2 = surfArea2;
+    if ( NodeAreaMode & 32 )
+    {
+        CurY1[Link[j].subIndex] = flowDepth1;
+        CurY2[Link[j].subIndex] = flowDepth2;
+    }
     *y1 = flowDepth1;
     *y2 = flowDepth2;
 }

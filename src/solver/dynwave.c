@@ -99,6 +99,21 @@ static void   findLinkFlows(double dt);
 static int    isTrueConduit(int link);
 static void   findNonConduitFlow(int link, double dt);
 static void   findNonConduitSurfArea(int link);
+
+// --- NODE-AREA EXPERIMENT (env SWMM_NODEAREA, bit flags; 0 = EPA 5.2.4):
+//     1   junction area = sum(link areas) + MinSurfArea, booked as storage
+//     2   every conduit end gets d(booked volume)/d(end depth); pinned ends 0
+//     4   link areas from true length instead of Courant-modified length
+//     8   SUBCRITICAL ends get W(y_end)*L/2 (keeps fasnh)
+//     16  as 8, without fasnh
+//     32  SUBCRITICAL ends get chord area dA/dy over the time step
+//     64  outfall end's share of a terminal conduit goes to interior node
+//     128 with 32: tangent crown-cutoff width near the crown
+//     256 as 64, FREE and NORMAL outfalls only
+//     512 book conduit volume with the Courant-modified length
+int NodeAreaMode = 0;
+void dwflow_initExperiment(void);
+void dwflow_closeExperiment(void);
 static double getModPumpFlow(int link, double q, double dt);
 static void   updateNodeFlows(int link);
 static void   updateConvergenceStats();
@@ -155,6 +170,24 @@ void dynwave_init()
         Link[i].dqdh = 0.0;
     }
 
+    // --- NODE-AREA EXPERIMENT: read mode; book manhole storage at junctions
+    {
+        char* e = getenv("SWMM_NODEAREA");
+        NodeAreaMode = e ? atoi(e) : 0;
+    }
+    if ( NodeAreaMode & 32 ) dwflow_initExperiment();
+    if ( NodeAreaMode & 1 )
+    {
+        for (i = 0; i < Nobjects[NODE]; i++)
+        {
+            if ( Node[i].type == STORAGE || Node[i].type == OUTFALL ) continue;
+            if ( Node[i].fullDepth <= 0.0 ) continue;
+            Node[i].fullVolume = MinSurfArea * Node[i].fullDepth;
+            Node[i].oldVolume  = node_getVolume(i, Node[i].oldDepth);
+            Node[i].newVolume  = Node[i].oldVolume;
+        }
+    }
+
     // --- set crown cutoff for finding top width of closed conduits
     if ( SurchargeMethod == SLOT ) CrownCutoff = SLOT_CROWN_CUTOFF;
     else                           CrownCutoff = EXTRAN_CROWN_CUTOFF;
@@ -170,6 +203,7 @@ void  dynwave_close()
 //
 {
     FREE(Xnode);
+    dwflow_closeExperiment();
 }
 
 //=============================================================================
@@ -667,6 +701,9 @@ void setNodeDepth(int i, double dt)
     yLast = Node[i].newDepth;
     Node[i].overflow = 0.0;
     surfArea = Xnode[i].newSurfArea;
+    if ( (NodeAreaMode & 1) && Node[i].type != STORAGE &&
+         Node[i].fullDepth > 0.0 && yLast < Node[i].fullDepth )
+        surfArea += MinSurfArea;
     surfArea = MAX(surfArea, MinSurfArea);
     
     // --- determine average net flow volume into node over the time step
@@ -862,7 +899,10 @@ double getLinkStep(double tMin, int *minLink)
 
             // --- compute time step to satisfy Courant condition
             t = Link[i].newVolume / Conduit[k].barrels / q;
-            t = t * Conduit[k].modLength / link_getLength(i);
+            // --- NODE-AREA EXPERIMENT bit 512: volume is already booked
+            //     with the modified length, so don't rescale it again
+            if ( !(NodeAreaMode & 512) )
+                t = t * Conduit[k].modLength / link_getLength(i);
             t = t * Link[i].froude / (1.0 + Link[i].froude) * CourantFactor;
 
             // --- update critical link time step

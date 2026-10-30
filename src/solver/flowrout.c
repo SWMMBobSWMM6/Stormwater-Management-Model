@@ -498,8 +498,11 @@ void initLinks(int routingModel)
 
             // --- compute initial volume from area
             {
-                Link[i].newVolume = Conduit[k].a1 * link_getLength(i) *
-                                    Conduit[k].barrels;
+                // --- NODE-AREA EXPERIMENT bit 512: book with modified length
+                extern int NodeAreaMode;
+                Link[i].newVolume = Conduit[k].a1 * Conduit[k].barrels *
+                    ((NodeAreaMode & 512) ? Conduit[k].modLength
+                                          : link_getLength(i));
             }
             Link[i].oldVolume = Link[i].newVolume;
         }
