@@ -1,0 +1,64 @@
+[TITLE]
+lake at rest
+
+[OPTIONS]
+FLOW_UNITS           CFS
+INFILTRATION         HORTON
+FLOW_ROUTING         DYNWAVE
+LINK_OFFSETS         DEPTH
+START_DATE           01/01/2026
+START_TIME           00:00:00
+REPORT_START_DATE    01/01/2026
+REPORT_START_TIME    00:00:00
+END_DATE             01/01/2026
+END_TIME             02:00:00
+DRY_DAYS             0
+REPORT_STEP          00:00:30
+WET_STEP             00:05:00
+DRY_STEP             00:05:00
+ROUTING_STEP         5
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         12.566
+SURCHARGE_METHOD     SLOT
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+ALLOW_PONDING        NO
+HEAD_TOLERANCE       0.005
+MAX_TRIALS           8
+THREADS              1
+
+[JUNCTIONS]
+;;Name Elev MaxDepth InitDepth SurDepth Aponded
+J1           100.000  12.00  5.000   0.00 0
+J2            98.500  12.00  6.500   0.00 0
+J3            97.000  12.00  8.000   0.00 0
+J4            96.000  12.00  9.000   0.00 0
+
+[OUTFALLS]
+;;Name Elev Type StageData Gated
+O1 95.000 FIXED 105.000 NO
+
+[CONDUITS]
+;;Name From To Length n InOff OutOff InitFlow MaxFlow
+C1       J1       J2         300.00 0.0130  0.000  0.000 0 0
+C2       J2       J3         300.00 0.0130  0.500  0.000 0 0
+C3       J3       J4         200.00 0.0130  0.000  0.000 0 0
+C4       J4       O1         100.00 0.0130  0.000  0.000 0 0
+
+[XSECTIONS]
+;;Link Shape G1 G2 G3 G4 Barrels
+C1 CIRCULAR 3.0 0 0 0 1
+C2 RECT_OPEN 4.0 5.0 0 0 1
+C3 CIRCULAR 6.0 0 0 0 2
+C4 TRAPEZOIDAL 6.0 4.0 1.0 1.0 1
+
+[REPORT]
+INPUT NO
+CONTROLS NO
+NODES ALL
+LINKS ALL
+
+[FV_LINKS]
+;;Link Cells
+C1

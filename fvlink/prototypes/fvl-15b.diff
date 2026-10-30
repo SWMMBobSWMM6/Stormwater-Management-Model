@@ -1,0 +1,133 @@
+--- a/src/solver/fvlink.c
++++ b/src/solver/fvlink.c
+@@ -153,6 +153,9 @@
+ static void   solveSystem(double dt, double (*getArea)(int));
+ static void   setLinkResults(TFvLink* f, double dt);
+ static double faceFlux(TFvLink* f, int m, double hd1, double hd2);
++static double celerity(const TFvLink* f, double h);
++static void   ghostState(const TFvLink* f, double e, double hc, double wc,
++              int dir, double* hg, double* ug);
+ static int    isGatedOutfall(int n);
+ 
+ //=============================================================================
+@@ -1038,6 +1041,96 @@
+ 
+ //=============================================================================
+ 
++double celerity(const TFvLink* f, double h)
++//
++//  Purpose: gravity wave celerity sqrt(g*A/W) at depth h (0 when dry).
++//
++{
++    double a, w;
++    if ( h <= 0.0 ) return 0.0;
++    a = areaOf(f, h);
++    w = widthOf(f, h);
++    if ( a <= f->aEps || w <= 0.0 ) return 0.0;
++    return sqrt(GRAVITY * a / w);
++}
++
++//=============================================================================
++
++void ghostState(const TFvLink* f, double e, double hc, double wc, int dir,
++                double* hg, double* ug)
++//
++//  Input:   e = node head above the face's reconstructed bed (ft)
++//           hc = adjacent cell's reconstructed depth (ft)
++//           wc = adjacent cell's velocity INTO the link (ft/sec)
++//           dir = +1 at the upstream face, -1 at the downstream face
++//  Output:  hg, ug = depth (ft) and velocity (ft/sec, along the link) of the
++//           ghost state on the node's side of the face
++//  Purpose: the node is a pool with head e and no velocity head. The ghost
++//           keeps the Riemann invariant w - 2c that reaches the face from
++//           the cell (w = velocity into the link). Water leaving the link
++//           sees the node's depth (the invariant sets its velocity). Water
++//           entering the link may carry no more energy than the node has:
++//           h + w^2/2g = e, at critical flow when the cell asks for more.
++//
++{
++    int    k;
++    double ci, r, w, lo, hi, mid, g2 = 2.0 * GRAVITY, fn, hcrit;
++
++    if ( e <= 0.0 )
++    {
++        *hg = 0.0;
++        *ug = 0.0;
++        return;
++    }
++    ci = celerity(f, hc);
++    r = wc - 2.0 * ci;                       // invariant from the cell
++    w = r + 2.0 * celerity(f, e);            // velocity at the node's depth
++    if ( w <= 0.0 )
++    {
++        // --- outflow (or still water): the node's depth, the invariant's
++        //     velocity
++        *hg = e;
++        *ug = dir * w;
++        return;
++    }
++
++    // --- inflow: critical depth for energy e, h + A/(2W) = e
++    lo = 0.0;
++    hi = e;
++    for (k = 0; k < 40; k++)
++    {
++        mid = 0.5 * (lo + hi);
++        fn = celerity(f, mid);
++        if ( mid + fn * fn / g2 > e ) hi = mid;
++        else lo = mid;
++    }
++    hcrit = lo;
++
++    // --- energy residual h + w(h)^2/2g - e is >= 0 at h = e; a root at or
++    //     above critical depth is the subcritical entrance state, otherwise
++    //     the entrance runs at critical flow
++    w = r + 2.0 * celerity(f, hcrit);
++    if ( hcrit + w * w / g2 - e > 0.0 || w <= 0.0 )
++    {
++        *hg = hcrit;
++        *ug = dir * celerity(f, hcrit);
++        return;
++    }
++    lo = hcrit;
++    hi = e;
++    for (k = 0; k < 40; k++)
++    {
++        mid = 0.5 * (lo + hi);
++        w = r + 2.0 * celerity(f, mid);
++        if ( mid + w * w / g2 - e > 0.0 ) hi = mid;
++        else lo = mid;
++    }
++    *hg = lo;
++    *ug = dir * (r + 2.0 * celerity(f, lo));
++}
++
++//=============================================================================
++
+ double faceFlux(TFvLink* f, int m, double hd1, double hd2)
+ //
+ //  Input:   f = FV link
+@@ -1045,8 +1138,8 @@
+ //           hd1, hd2 = heads at the link's upstream and downstream nodes (ft)
+ //  Output:  returns the largest signal speed at the face (ft/sec)
+ //  Purpose: computes the HLL flux and the hydrostatic corrections at a face.
+-//           An end face sees a ghost whose surface is the node head and
+-//           whose velocity is the adjacent cell's.
++//           An end face sees a ghost built by ghostState(): the node's
++//           head as a pool, and the adjacent cell's Riemann invariant.
+ //
+ {
+     int    nc = f->nCells;
+@@ -1107,6 +1200,12 @@
+     zs = MAX(zL, zR);
+     hLs = MAX(0.0, etaL - zs);
+     hRs = MAX(0.0, etaR - zs);
++
++    // --- an end face's ghost is the node seen from the link: it carries
++    //     the node's energy, not more, and the Riemann invariant that
++    //     reaches the face from the adjacent cell (FVL-15)
++    if ( m == 0 )       ghostState(f, hLs, hRs, uR, 1, &hLs, &uL);
++    else if ( m == nc ) ghostState(f, hRs, hLs, -uL, -1, &hRs, &uR);
+     aL = areaOf(f, hLs);
+     aR = areaOf(f, hRs);
+     hllFlux(f, hLs, aL, uL, hRs, aR, uR, &f->fm[m], &f->fq[m], &s);

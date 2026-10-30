@@ -1,0 +1,6 @@
+A: ../swmm5_stock ../models/tree_dw.inp t1.rpt t1.out
+   median 4.783 s  min 4.652 s  max 5.333 s  run-to-run spread 14.2% of median  (n=7, interleaved)
+B: ../swmm5_fv ../models/tree_fv.inp t2.rpt t2.out
+   median 0.896 s  min 0.827 s  max 0.965 s  run-to-run spread 15.4% of median
+B/A: 0.187× by medians; per-pair ratios 0.160–0.193 (median 0.175)
+Resolved: every interleaved pair agrees on the sign. Quote it as 0.19× with the 0.16–0.19 range attached.

@@ -1,0 +1,14 @@
+CLEAN     chain_fv         exit 0  sanitizer reports 0  run completed 1
+CLEAN     mixed_4fv_fv     exit 0  sanitizer reports 0  run completed 1
+CLEAN     lake_all_fv      exit 0  sanitizer reports 0  run completed 1
+CLEAN     resonator        exit 0  sanitizer reports 0  run completed 1
+CLEAN     q_fv             exit 0  sanitizer reports 0  run completed 1
+CLEAN     gate_fv          exit 0  sanitizer reports 0  run completed 1
+CLEAN     longid           exit 0  sanitizer reports 0  run completed 1
+CLEAN     rev_fvall        exit 0  sanitizer reports 0  run completed 1
+CLEAN     chain70x_C4_fv   exit 0  sanitizer reports 0  run completed 1
+CLEAN     short_C3_fv      exit 0  sanitizer reports 0  run completed 1
+CLEAN     channel_C2_fv    exit 0  sanitizer reports 0  run completed 1
+CLEAN     zz_user2__fv     exit 0  sanitizer reports 0  run completed 1
+CLEAN     zz_user5__fv     exit 0  sanitizer reports 0  run completed 1
+SUMMARY clean=13 reported=0

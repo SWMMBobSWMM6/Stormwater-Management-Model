@@ -1,0 +1,379 @@
+[TITLE]
+The Thoth Canal: headworks to Colony Basin (Thaw on the Thoth)
+
+[OPTIONS]
+FLOW_UNITS           CFS
+INFILTRATION         HORTON
+FLOW_ROUTING         DYNWAVE
+LINK_OFFSETS         DEPTH
+START_DATE           04/10/2097
+START_TIME           00:00:00
+REPORT_START_DATE    04/10/2097
+REPORT_START_TIME    00:00:00
+END_DATE             04/14/2097
+END_TIME             00:00:00
+SWEEP_START          01/01
+SWEEP_END            12/31
+DRY_DAYS             0
+REPORT_STEP          00:05:00
+WET_STEP             00:05:00
+DRY_STEP             00:05:00
+ROUTING_STEP         30
+ALLOW_PONDING        NO
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+FORCE_MAIN_EQUATION  H-W
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         12.566
+MAX_TRIALS           8
+HEAD_TOLERANCE       0.005
+SYS_FLOW_TOL         5
+LAT_FLOW_TOL         5
+MINIMUM_STEP         0.1
+THREADS              1
+
+[JUNCTIONS]
+;;Name  Invert  MaxDepth  InitDepth  SurDepth  Aponded
+HW         200.000   14.0  2.60 0 0
+U1         198.416   14.0  2.60 0 0
+U2         196.832   14.0  2.60 0 0
+U3         195.248   14.0  2.60 0 0
+U4         193.664   14.0  2.60 0 0
+U4X        193.661   14.0  2.60 0 0
+U5         192.077   14.0  2.60 0 0
+U6         190.493   14.0  2.60 0 0
+U7         188.909   14.0  2.60 0 0
+U8         187.325   14.0  2.60 0 0
+CB         167.325   14.0  2.60 0 0
+L1         165.741   14.0  2.60 0 0
+L2         164.157   14.0  2.60 0 0
+L3         162.573   14.0  2.87 0 0
+L4         160.989   14.0  4.45 0 0
+L5         159.405   14.0  6.04 0 0
+L6         157.821   14.0  7.62 0 0
+OC1        151.821   12.0  0.00 0 0
+OUTJ       156.141  14.0  0.0 0 0
+
+[OUTFALLS]
+;;Name  Invert  Type
+OLDSINK    149.821 FREE NO
+SINK       147.141 FREE NO
+TOWN       187.141 FREE NO
+
+[STORAGE]
+;;Name  Invert  MaxD  InitD  Shape  Coeff  Expon  Const  SurDepth  Fevap
+BASIN      157.141 14.5 8.3 FUNCTIONAL 20000 1 1500000 0 0
+BAY        155.141 20.0 8.0 FUNCTIONAL 0 0 5000 0 0
+
+[CONDUITS]
+;;Name  From  To  Length  n  InOff  OutOff  InitFlow  MaxFlow
+UT1      HW     U1       5280.0 0.0232 0 0 0 0
+UT2      U1     U2       5280.0 0.0232 0 0 0 0
+UT3      U2     U3       5280.0 0.0232 0 0 0 0
+UT4      U3     U4       5280.0 0.0232 0 0 0 0
+CULVERT  U4     U4X        10.0 0.0140 0 0 0 0
+UT5      U4X    U5       5280.0 0.0232 0 0 0 0
+UT6      U5     U6       5280.0 0.0232 0 0 0 0
+UT7      U6     U7       5280.0 0.0232 0 0 0 0
+UT8      U7     U8       5280.0 0.0232 0 0 0 0
+CHUTE    U8     CB        400.0 0.0140 0 0 0 0
+LT1      CB     L1       5280.0 0.0232 0 0 0 0
+LT2      L1     L2       5280.0 0.0232 0 0 0 0
+LT3      L2     L3       5280.0 0.0232 0 0 0 0
+LT4      L3     L4       5280.0 0.0232 0 0 0 0
+LT5      L4     L5       5280.0 0.0232 0 0 0 0
+LT6      L5     L6       5280.0 0.0232 0 0 0 0
+LT7      L6     BASIN     600.0 0.0232 0 0 0 0
+INTAKE   BASIN  BAY    300.0 0.0140 0 0 0 0
+OLDCAN   OC1    OLDSINK 2000.0 0.0300 0 0 0 0
+OUTCAN   OUTJ   SINK   4000.0 0.0232 0 0 0 0
+
+[PUMPS]
+;;Name  From  To  Curve  Status  Startup  Shutoff
+INTAKEP  BAY    TOWN   TOWNPUMP  ON  0  0
+
+[ORIFICES]
+;;Name  From  To  Type  Offset  Qcoeff  Gated  CloseTime
+OLDGATE  L6     OC1    SIDE  2.0  0.61  NO  0
+
+[WEIRS]
+;;Name  From  To  Type  CrestHt  Qcoeff  Gated  EndCon  EndCoeff  Surcharge
+SILL     BASIN  OUTJ   TRANSVERSE  8.0  2.050  NO  0  0  YES
+
+[XSECTIONS]
+;;Link  Shape  Geom1  Geom2  Geom3  Geom4  Barrels  Culvert
+UT1      TRAPEZOIDAL  14 40 2 2 1
+UT2      TRAPEZOIDAL  14 40 2 2 1
+UT3      TRAPEZOIDAL  14 40 2 2 1
+UT4      TRAPEZOIDAL  14 40 2 2 1
+CULVERT  RECT_OPEN    14 40 0 0 1
+UT5      TRAPEZOIDAL  14 40 2 2 1
+UT6      TRAPEZOIDAL  14 40 2 2 1
+UT7      TRAPEZOIDAL  14 40 2 2 1
+UT8      TRAPEZOIDAL  14 40 2 2 1
+CHUTE    RECT_OPEN    10 40 0 0 1
+LT1      TRAPEZOIDAL  14 40 2 2 1
+LT2      TRAPEZOIDAL  14 40 2 2 1
+LT3      TRAPEZOIDAL  14 40 2 2 1
+LT4      TRAPEZOIDAL  14 40 2 2 1
+LT5      TRAPEZOIDAL  14 40 2 2 1
+LT6      TRAPEZOIDAL  14 40 2 2 1
+LT7      TRAPEZOIDAL  14 40 2 2 1
+INTAKE   RECT_OPEN    16 12 0 0 1
+OLDCAN   TRAPEZOIDAL  10 30 2 2 1
+OUTCAN   TRAPEZOIDAL  14 60 2 2 1
+OLDGATE  RECT_CLOSED  8 20 0 0
+SILL     RECT_OPEN    8 100 0 0
+
+[CURVES]
+;;the town intake: 150 cfs at any wet-well volume
+TOWNPUMP  PUMP1  0  150
+TOWNPUMP         1e9  150
+
+[INFLOWS]
+;;Node  Constituent  TimeSeries  Type  Mfactor  Sfactor  Baseline  Pattern
+HW  FLOW  MELT  FLOW  1.0  1.0
+
+[TIMESERIES]
+;;the melt hydrograph at the headworks (hours, cfs)
+MELT     0.0     300.00
+MELT     0.5     300.00
+MELT     1.0     300.00
+MELT     1.5     300.00
+MELT     2.0     300.00
+MELT     2.5     300.00
+MELT     3.0     300.00
+MELT     3.5     300.00
+MELT     4.0     300.00
+MELT     4.5     300.00
+MELT     5.0     300.00
+MELT     5.5     300.00
+MELT     6.0     300.00
+MELT     6.5     300.00
+MELT     7.0     300.00
+MELT     7.5     300.00
+MELT     8.0     300.00
+MELT     8.5     300.00
+MELT     9.0     300.00
+MELT     9.5     300.00
+MELT    10.0     300.00
+MELT    10.5     300.00
+MELT    11.0     300.00
+MELT    11.5     300.00
+MELT    12.0     300.00
+MELT    12.5     300.00
+MELT    13.0     300.00
+MELT    13.5     300.00
+MELT    14.0     300.00
+MELT    14.5     300.00
+MELT    15.0     300.00
+MELT    15.5     300.00
+MELT    16.0     300.00
+MELT    16.5     300.00
+MELT    17.0     300.00
+MELT    17.5     300.00
+MELT    18.0     300.00
+MELT    18.5     300.00
+MELT    19.0     300.00
+MELT    19.5     300.00
+MELT    20.0     300.00
+MELT    20.5     300.00
+MELT    21.0     300.00
+MELT    21.5     300.00
+MELT    22.0     300.00
+MELT    22.5     300.00
+MELT    23.0     300.00
+MELT    23.5     300.00
+MELT    24.0     300.00
+MELT    24.5     301.54
+MELT    25.0     311.37
+MELT    25.5     335.30
+MELT    26.0     376.99
+MELT    26.5     438.35
+MELT    27.0     519.96
+MELT    27.5     621.36
+MELT    28.0     741.35
+MELT    28.5     878.16
+MELT    29.0    1029.67
+MELT    29.5    1193.54
+MELT    30.0    1367.31
+MELT    30.5    1548.49
+MELT    31.0    1734.66
+MELT    31.5    1923.48
+MELT    32.0    2112.76
+MELT    32.5    2300.49
+MELT    33.0    2484.82
+MELT    33.5    2664.11
+MELT    34.0    2836.92
+MELT    34.5    3001.99
+MELT    35.0    3158.26
+MELT    35.5    3304.87
+MELT    36.0    3441.13
+MELT    36.5    3566.48
+MELT    37.0    3680.56
+MELT    37.5    3783.13
+MELT    38.0    3874.05
+MELT    38.5    3953.34
+MELT    39.0    4021.07
+MELT    39.5    4077.45
+MELT    40.0    4122.71
+MELT    40.5    4157.20
+MELT    41.0    4181.29
+MELT    41.5    4195.40
+MELT    42.0    4200.00
+MELT    42.5    4195.57
+MELT    43.0    4182.63
+MELT    43.5    4161.69
+MELT    44.0    4133.30
+MELT    44.5    4097.98
+MELT    45.0    4056.28
+MELT    45.5    4008.72
+MELT    46.0    3955.83
+MELT    46.5    3898.10
+MELT    47.0    3836.05
+MELT    47.5    3770.14
+MELT    48.0    3700.84
+MELT    48.5    3628.59
+MELT    49.0    3553.80
+MELT    49.5    3476.87
+MELT    50.0    3398.19
+MELT    50.5    3318.10
+MELT    51.0    3236.95
+MELT    51.5    3155.04
+MELT    52.0    3072.66
+MELT    52.5    2990.09
+MELT    53.0    2907.56
+MELT    53.5    2825.31
+MELT    54.0    2743.55
+MELT    54.5    2662.47
+MELT    55.0    2582.24
+MELT    55.5    2503.01
+MELT    56.0    2424.92
+MELT    56.5    2348.10
+MELT    57.0    2272.66
+MELT    57.5    2198.69
+MELT    58.0    2126.27
+MELT    58.5    2055.47
+MELT    59.0    1986.36
+MELT    59.5    1918.97
+MELT    60.0    1853.36
+MELT    60.5    1789.54
+MELT    61.0    1727.53
+MELT    61.5    1667.36
+MELT    62.0    1609.03
+MELT    62.5    1552.53
+MELT    63.0    1497.87
+MELT    63.5    1445.03
+MELT    64.0    1393.99
+MELT    64.5    1344.74
+MELT    65.0    1297.25
+MELT    65.5    1251.49
+MELT    66.0    1207.44
+MELT    66.5    1165.06
+MELT    67.0    1124.31
+MELT    67.5    1085.17
+MELT    68.0    1047.59
+MELT    68.5    1011.53
+MELT    69.0     976.95
+MELT    69.5     943.82
+MELT    70.0     912.09
+MELT    70.5     881.71
+MELT    71.0     852.65
+MELT    71.5     824.86
+MELT    72.0     798.31
+MELT    72.5     772.94
+MELT    73.0     748.73
+MELT    73.5     725.61
+MELT    74.0     703.57
+MELT    74.5     682.55
+MELT    75.0     662.53
+MELT    75.5     643.45
+MELT    76.0     625.28
+MELT    76.5     607.99
+MELT    77.0     591.53
+MELT    77.5     575.89
+MELT    78.0     561.01
+MELT    78.5     546.88
+MELT    79.0     533.45
+MELT    79.5     520.69
+MELT    80.0     508.58
+MELT    80.5     497.09
+MELT    81.0     486.19
+MELT    81.5     475.85
+MELT    82.0     466.05
+MELT    82.5     456.76
+MELT    83.0     447.95
+MELT    83.5     439.61
+MELT    84.0     431.72
+MELT    84.5     424.24
+MELT    85.0     417.16
+MELT    85.5     410.47
+MELT    86.0     404.13
+MELT    86.5     398.15
+MELT    87.0     392.48
+MELT    87.5     387.13
+MELT    88.0     382.07
+MELT    88.5     377.29
+MELT    89.0     372.78
+MELT    89.5     368.52
+MELT    90.0     364.49
+MELT    90.5     360.70
+MELT    91.0     357.11
+MELT    91.5     353.73
+MELT    92.0     350.54
+MELT    92.5     347.53
+MELT    93.0     344.70
+MELT    93.5     342.02
+MELT    94.0     339.51
+MELT    94.5     337.13
+MELT    95.0     334.89
+MELT    95.5     332.79
+MELT    96.0     330.80
+
+[CONTROLS]
+RULE INTAKE
+IF SIMULATION TIME > 0
+THEN PUMP INTAKEP STATUS = ON
+
+RULE SPILL
+IF SIMULATION TIME >= 38.0
+AND SIMULATION TIME < 52.0
+THEN ORIFICE OLDGATE SETTING = 0.5
+ELSE ORIFICE OLDGATE SETTING = 0
+
+[REPORT]
+INPUT NO
+CONTROLS NO
+NODES ALL
+LINKS ALL
+
+[FV_LINKS]
+;;Link  Cells
+CULVERT  1
+
+[COORDINATES]
+HW  0.0  0.0
+U1  1000.0  0.0
+U2  2000.0  0.0
+U3  3000.0  0.0
+U4  4000.0  0.0
+U4X  4080.0  0.0
+U5  5000.0  0.0
+U6  6000.0  0.0
+U7  7000.0  0.0
+U8  8000.0  0.0
+CB  8600.0  -600.0
+L1  9600.0  -1200.0
+L2  10600.0  -1200.0
+L3  11600.0  -1200.0
+L4  12600.0  -1200.0
+L5  13600.0  -1200.0
+L6  14600.0  -1200.0
+OC1  14600.0  -2400.0
+BASIN  15400.0  -1200.0
+BAY  16400.0  -400.0
+TOWN  17200.0  -400.0
+OUTJ  17200.0  -1800.0
+SINK  18200.0  -1800.0
+OLDSINK  15400.0  -3400.0

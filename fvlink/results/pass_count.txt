@@ -1,0 +1,31 @@
+Substep pass count (FVL-13), measured 2026-10-17 on the build before the fix
+with scripts/pass_count.patch applied (counters only; results unchanged).
+
+For each substep the node estimate and end-face re-solve run up to four
+times ("passes"). "Accepted on pass k" means the re-solved end faces
+allowed the substep on the k-th estimate. "Exhausted" means the fourth
+estimate still asked for a shorter substep, which the loop then took
+without a fifth estimate.
+
+38 runs with FV links: models/*_fv*.inp, models/gates/*.inp,
+models/review/*_fv*.inp, work/x8/*_fv.inp
+  substeps 3,692,824
+  accepted on pass 1: 3,603,402   pass 2: 89,316   pass 3: 106   pass 4: 0
+  exhausted: 0
+
+37 EPA sweep runs (scripts/sweep.py, one conduit FV per model)
+  substeps 17,885,456
+  accepted on pass 1: 17,410,340   pass 2: 474,879   pass 3: 137   pass 4: 82
+  exhausted: 18, all in test5 (FV link 10)
+  last cut / substep estimated on the fourth pass: 0.999999986 to 0.999999999
+  shortest exhausted substep 1.289 s (test5 reports a minimum substep of
+  0.6956 s, so its report is unchanged); none below the 0.001 s floor
+
+Before vs. after the fixes (scripts/prev_build_cmp.sh, results/prev_build_cmp.txt):
+the 43 test-network, gate and probe models (the 38 runs above, 3 pump probes
+that stop with ERROR 116 at input, and 2 gate models without FV links) plus
+the 37 sweep models, run on the build before FVL-13 and on the final build
+(FVL-13 and FVL-14 fixed). Every run that completes writes byte-identical
+.out files on both builds; the 3 pump probes stop with the same ERROR 116 on
+both. suite.csv, sweep.csv and gates.txt match the 2026-10-13 runs in every
+field except wall time.

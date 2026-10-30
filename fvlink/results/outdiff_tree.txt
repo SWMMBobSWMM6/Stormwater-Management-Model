@@ -1,0 +1,17 @@
+A: tree_dw.out   B: tree_fv.out
+engine 52004 vs 52004 · CFS · 720 periods @ 30s · every period compared, none subsampled
+
+LINKS (conduits; 0 non-conduit skipped; 0 below peak floor 0.0353147 CFS)
+  each value is |A−B| as a fraction of that element's own peak in A
+  worst instant  n=400  >1%:   3.75%  >10%:   0.00%  >25%:   0.00%  median 0.50%  p90 0.72%  max 1.66%
+  time-averaged  n=400  >1%:   0.00%  >10%:   0.00%  >25%:   0.00%  median 0.07%  p90 0.07%  max 0.13%
+  |peak change|  n=400  >1%:   0.00%  >10%:   0.00%  >25%:   0.00%  median 0.34%  p90 0.42%  max 0.53%
+  largest single flow difference anywhere: 1.293 CFS
+
+NODES (depth; 0 below peak-depth floor 0.001)
+  worst instant  n=401  >1%:   1.25%  >10%:   0.00%  >25%:   0.00%  median 0.31%  p90 0.46%  max 1.67%
+  time-averaged  n=401  >1%:   0.00%  >10%:   0.00%  >25%:   0.00%  median 0.04%  p90 0.05%  max 0.20%
+  |peak change|  n=401  >1%:   0.00%  >10%:   0.00%  >25%:   0.00%  median 0.18%  p90 0.29%  max 0.80%
+  largest single depth difference anywhere: 0.01857 depth units
+
+Read it her way: if the peak-change row is small while the worst-instant row is large, the answer was not rescaled — its timing and shape moved under an almost unchanged peak, which the continuity line cannot see.

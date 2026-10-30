@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>FV Link Lab</title>
+<meta name="description" content="Run stock EPA SWMM 5.2.4 and swmm524-fvlink side by side in the browser: finite volume on the conduits you choose, dynamic wave everywhere else.">
+<style>
+{{STYLE}}
+.net-dw{stroke:var(--c-dw);fill:none;stroke-linecap:round;stroke-linejoin:round}
+.net-fv{stroke:var(--c-fv);fill:none;stroke-linecap:butt;stroke-linejoin:round}
+.net-other{stroke:var(--c-ref);fill:none;stroke-dasharray:4 3}
+.net-hit{stroke:transparent;stroke-width:12px;fill:none;cursor:pointer;pointer-events:stroke}
+.net-hit:hover{stroke:var(--c-fv);stroke-opacity:.25}
+.net-node{fill:var(--c-nodefill);stroke:var(--c-pipe);stroke-width:1}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row">
+    <div>
+      <h1>FV Link Lab</h1>
+      <div class="sub">swmm524-fvlink: finite volume on the conduits you choose, dynamic wave everywhere else · EPA SWMM 5.2.4 in WebAssembly · <a href="#" data-goto="about" style="color:var(--headersub)">AI use: see About</a></div>
+    </div>
+    <div class="grow"></div>
+    <button class="hbtn" id="gif-btn" title="Record a captioned walkthrough of what you do next">Make a GIF</button>
+    <div class="seg" id="theme-toggle" role="group" aria-label="Colour theme">
+      <button data-t="dark" class="on">Dark</button><button data-t="light">Light</button><button data-t="auto">Auto</button>
+    </div>
+  </div>
+</header>
+<nav class="tabs" aria-label="Sections"><div class="row">
+  <button data-tab="run" class="on">Run</button>
+  <button data-tab="evidence">Evidence</button>
+  <button data-tab="defects">Defects</button>
+  <button data-tab="about">About</button>
+  <button data-tab="doc">Doc</button>
+</div></nav>
+
+<main>
+<!-- ============================================================ RUN -->
+<section class="tab on" id="tab-run">
+  <div class="banner"><b>Run.</b> Pick a model, list one or more conduits as FV links, and run both engines. Stock EPA SWMM 5.2.4 runs the model without the <code>[FV_LINKS]</code> section; swmm524-fvlink runs it with the section. Everything runs in your browser.</div>
+  <div class="grid2">
+    <div class="stack">
+      <div class="card" id="model-card">
+        <h2>Model</h2>
+        <div class="row-inline">
+          <select id="sample-select" aria-label="Sample models" style="max-width:100%"></select>
+          <label class="btn ghost" style="display:inline-block">Open .inp…<input type="file" id="file-in" accept=".inp,.dat,.txt,.csv,.hsf,.rff,.tsf" multiple hidden></label>
+        </div>
+        <p style="margin:10px 0 4px"><b id="model-name" class="mono"></b></p>
+        <div class="muted" id="model-info"></div>
+        <p class="muted" id="sample-note" style="margin:8px 0 0"></p>
+        <div class="warn-box" id="routing-warn" style="display:none;margin-top:8px">This model does not use DYNWAVE routing, so the engine will reject any FV link (ERROR 116). The null check still works.</div>
+      </div>
+      <div class="card" id="run-card">
+        <h2>FV links and run</h2>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>FV link</th><th>Cells</th><th>Pre-check</th><th></th></tr></thead><tbody id="sel-body"></tbody></table></div>
+        <div class="faint" style="margin:6px 0 10px">Leave Cells blank for the default: <span class="mono">cells = max(4, ⌈L / 25 ft⌉)</span>, so cells are about 25 ft long.</div>
+        <div class="row-inline" style="margin-bottom:8px">
+          <label class="chk"><input type="checkbox" id="opt-reportall" checked> Report every node and link</label>
+          <label class="chk">Report step <select id="opt-rstep" aria-label="Report step override"><option value="">model's own</option><option value="00:00:05">5 s</option><option value="00:00:30">30 s</option><option value="00:01:00">1 min</option><option value="00:05:00">5 min</option></select></label>
+        </div>
+        <div class="faint" style="margin-bottom:10px">Both options change only what is written to the .out file, and they change it the same way for both runs.</div>
+        <div class="btns">
+          <button class="btn" id="run-btn">Run both</button>
+          <button class="btn ghost" id="null-btn" title="Run the patched engine with no FV links and compare with stock, byte for byte">Null check</button>
+          <button class="btn ghost" id="cancel-btn" disabled>Cancel</button>
+        </div>
+        <div style="margin-top:12px">
+          <div class="row-inline" style="justify-content:space-between"><span class="muted"><span class="swatch sw-dw"></span>stock 5.2.4</span><span class="faint" id="prog-stock-lab">idle</span></div>
+          <div class="progress" id="prog-stock"><div></div></div>
+          <div class="row-inline" style="justify-content:space-between;margin-top:6px"><span class="muted"><span class="swatch sw-fv"></span>swmm524-fvlink</span><span class="faint" id="prog-fv-lab">idle</span></div>
+          <div class="progress" id="prog-fv"><div></div></div>
+        </div>
+        <div id="null-result" style="margin-top:10px"></div>
+        <details style="margin-top:10px"><summary class="muted">The section the FV run adds</summary><pre class="code" id="fv-section"></pre></details>
+      </div>
+    </div>
+    <div class="card" id="net-card">
+      <h2>Network</h2>
+      <div class="netwrap" id="net"></div>
+      <div class="row-inline" style="margin:8px 0 4px;justify-content:space-between">
+        <span class="faint" id="net-note"></span>
+        <span class="faint"><span class="swatch sw-dw"></span>dynamic wave <span class="swatch sw-fv" style="height:7px"></span>FV link <span class="swatch sw-ref"></span>pump, weir, orifice, outlet</span>
+      </div>
+      <h3>Conduits</h3>
+      <div class="row-inline" style="margin-bottom:6px"><input type="search" id="cond-filter" placeholder="Filter by link or node ID" aria-label="Filter conduits" style="flex:1;min-width:160px"><span class="faint" id="cond-count"></span></div>
+      <div class="tbl-wrap" style="max-height:330px"><table class="t"><thead><tr><th>FV</th><th>Link</th><th>From → to</th><th class="num">Length</th><th>Shape</th><th class="num">Default cells</th><th>Pre-check</th></tr></thead><tbody id="cond-body"></tbody></table></div>
+      <div class="faint" style="margin-top:6px">The pre-check mirrors <span class="mono">fvlink_validate()</span>; the engine has the final word and reports ERROR 116 for a conduit it rejects.</div>
+    </div>
+  </div>
+  <div class="card" id="results-card" style="margin-top:16px">
+    <h2>Comparison</h2>
+    <div id="results"></div>
+    <div class="btns" id="res-actions" style="display:none;margin-top:10px">
+      <button class="btn ghost" id="dl-inp">FV model .inp</button>
+      <select id="dl-files" aria-label="Download a report or output file"><option value="">Download a run's files…</option><option value="stock-rpt">stock .rpt</option><option value="stock-out">stock .out</option><option value="fv-rpt">FV .rpt</option><option value="fv-out">FV .out</option></select>
+      <button class="btn ghost" id="dl-fvsum">FV summary CSV</button>
+      <button class="btn ghost" id="dl-peaks">Peaks CSV</button>
+    </div>
+    <div id="chart-card" style="display:none;margin-top:14px">
+      <h3>Compare any link or node</h3>
+      <div class="row-inline" id="chart-ctl"></div>
+      <div class="chartbox fig-scroll" id="chart" style="margin-top:8px"></div>
+      <div class="row-inline" style="justify-content:space-between;margin-top:4px">
+        <span class="faint"><span class="swatch sw-dw"></span>stock 5.2.4 <span class="swatch sw-fv"></span>swmm524-fvlink · values at each reporting step, from each .out</span>
+        <button class="btn ghost" id="dl-series" style="padding:3px 10px">Series CSV</button>
+      </div>
+      <div class="muted" id="chart-stats" style="margin-top:4px"></div>
+      <h3>Peaks, every element <select id="peak-kind" aria-label="Peak table"><option value="link">links</option><option value="node">nodes</option></select></h3>
+      <div id="peaks"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ EVIDENCE -->
+<section class="tab" id="tab-evidence">
+{{EVIDENCE}}
+</section>
+
+<!-- ============================================================ DEFECTS -->
+<section class="tab" id="tab-defects">
+{{DEFECTS}}
+</section>
+
+<!-- ============================================================ ABOUT -->
+<section class="tab" id="tab-about">
+{{ABOUT}}
+</section>
+
+<!-- ============================================================ DOC -->
+<section class="tab" id="tab-doc">
+{{DOC}}
+</section>
+</main>
+<button class="ob-help-btn" id="help-btn" aria-label="Help and tour">?</button>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script type="application/json" id="samples">{{SAMPLES}}</script>
+<script type="text/plain" id="eng-stock">{{ENG_STOCK}}</script>
+<script type="text/plain" id="eng-fv">{{ENG_FV}}</script>
+<script type="text/plain" id="eng-worker">{{WORKER}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js" defer></script>
+<script>
+{{APP}}
+</script>
+</body>
+</html>

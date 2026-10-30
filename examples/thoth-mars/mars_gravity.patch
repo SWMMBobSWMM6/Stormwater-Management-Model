@@ -1,0 +1,11 @@
+--- a/src/solver/consts.h
++++ b/src/solver/consts.h
+@@ -34,7 +34,7 @@
+ #define   ZERO               1.E-10         // Effective zero value
+ #define   MISSING            -1.E10         // Missing value code
+ #define   PI                 3.141592654    // Value of pi
+-#define   GRAVITY            32.2           // accel. of gravity in US units
++#define   GRAVITY            12.2           // accel. of gravity in US units: MARS (3.72 m/s2)
+ #define   SI_GRAVITY         9.81           // accel of gravity in SI units
+ /* DEPRECATED
+ #define   MAXFILESIZE        2147483647L    // largest file size in bytes

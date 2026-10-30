@@ -1,0 +1,88 @@
+--- a/src/solver/fvlink.c
++++ b/src/solver/fvlink.c
+@@ -153,6 +153,8 @@
+ static void   solveSystem(double dt, double (*getArea)(int));
+ static void   setLinkResults(TFvLink* f, double dt);
+ static double faceFlux(TFvLink* f, int m, double hd1, double hd2);
++static double celerity(const TFvLink* f, double h);
++static void   criticalEntrance(const TFvLink* f, double e, double* h, double* u);
+ static int    isGatedOutfall(int n);
+ 
+ //=============================================================================
+@@ -1038,6 +1040,44 @@
+ 
+ //=============================================================================
+ 
++double celerity(const TFvLink* f, double h)
++//
++//  Purpose: gravity wave celerity sqrt(g*A/W) at depth h (0 when dry).
++//
++{
++    double a, w;
++    if ( h <= 0.0 ) return 0.0;
++    a = areaOf(f, h);
++    w = widthOf(f, h);
++    if ( a <= f->aEps || w <= 0.0 ) return 0.0;
++    return sqrt(GRAVITY * a / w);
++}
++
++//=============================================================================
++
++void criticalEntrance(const TFvLink* f, double e, double* h, double* u)
++//
++//  Input:   e = node head above the face's reconstructed bed (ft)
++//  Output:  h, u = critical depth (ft) and velocity (ft/sec) for specific
++//           energy e, h + A/(2W) = e
++//
++{
++    int    k;
++    double lo = 0.0, hi = e, mid, c;
++    if ( e <= 0.0 ) { *h = 0.0; *u = 0.0; return; }
++    for (k = 0; k < 40; k++)
++    {
++        mid = 0.5 * (lo + hi);
++        c = celerity(f, mid);
++        if ( mid + c * c / (2.0 * GRAVITY) > e ) hi = mid;
++        else lo = mid;
++    }
++    *h = lo;
++    *u = celerity(f, lo);
++}
++
++//=============================================================================
++
+ double faceFlux(TFvLink* f, int m, double hd1, double hd2)
+ //
+ //  Input:   f = FV link
+@@ -1046,7 +1086,8 @@
+ //  Output:  returns the largest signal speed at the face (ft/sec)
+ //  Purpose: computes the HLL flux and the hydrostatic corrections at a face.
+ //           An end face sees a ghost whose surface is the node head and
+-//           whose velocity is the adjacent cell's.
++//           whose velocity is the adjacent cell's; supercritical inflow
++//           enters at critical flow for the node's head (FVL-15).
+ //
+ {
+     int    nc = f->nCells;
+@@ -1107,6 +1148,21 @@
+     zs = MAX(zL, zR);
+     hLs = MAX(0.0, etaL - zs);
+     hRs = MAX(0.0, etaR - zs);
++
++    // --- water entering the link from a node is a pool's water. While the
++    //     adjacent cell runs subcritical the ghost keeps dynamic wave's own
++    //     convention at a conduit end (node depth, the cell's velocity).
++    //     When the cell runs supercritical into the link, the entrance
++    //     passes critical flow for the node's head, as dynamic wave sets
++    //     critical depth at an upstream-critical conduit end; the cell's
++    //     velocity is not handed back to the pool (FVL-15)
++    if ( m == 0 && uR > 0.0 && uR >= celerity(f, hRs) )
++        criticalEntrance(f, hLs, &hLs, &uL);
++    else if ( m == nc && uL < 0.0 && -uL >= celerity(f, hLs) )
++    {
++        criticalEntrance(f, hRs, &hRs, &uR);
++        uR = -uR;
++    }
+     aL = areaOf(f, hLs);
+     aR = areaOf(f, hRs);
+     hllFlux(f, hLs, aL, uL, hRs, aR, uR, &f->fm[m], &f->fq[m], &s);

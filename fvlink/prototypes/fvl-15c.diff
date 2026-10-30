@@ -1,0 +1,70 @@
+--- a/src/solver/fvlink.c
++++ b/src/solver/fvlink.c
+@@ -153,6 +153,7 @@
+ static void   solveSystem(double dt, double (*getArea)(int));
+ static void   setLinkResults(TFvLink* f, double dt);
+ static double faceFlux(TFvLink* f, int m, double hd1, double hd2);
++static double celerity(const TFvLink* f, double h);
+ static int    isGatedOutfall(int n);
+ 
+ //=============================================================================
+@@ -1038,6 +1039,21 @@
+ 
+ //=============================================================================
+ 
++double celerity(const TFvLink* f, double h)
++//
++//  Purpose: gravity wave celerity sqrt(g*A/W) at depth h (0 when dry).
++//
++{
++    double a, w;
++    if ( h <= 0.0 ) return 0.0;
++    a = areaOf(f, h);
++    w = widthOf(f, h);
++    if ( a <= f->aEps || w <= 0.0 ) return 0.0;
++    return sqrt(GRAVITY * a / w);
++}
++
++//=============================================================================
++
+ double faceFlux(TFvLink* f, int m, double hd1, double hd2)
+ //
+ //  Input:   f = FV link
+@@ -1046,11 +1062,12 @@
+ //  Output:  returns the largest signal speed at the face (ft/sec)
+ //  Purpose: computes the HLL flux and the hydrostatic corrections at a face.
+ //           An end face sees a ghost whose surface is the node head and
+-//           whose velocity is the adjacent cell's.
++//           whose velocity is the adjacent cell's, held to critical flow
++//           at the node's depth when water enters the link (FVL-15).
+ //
+ {
+     int    nc = f->nCells;
+-    double zL, zR, zs, hL, hR, hLs, hRs, etaL, etaR, uL, uR, aL, aR, s;
++    double zL, zR, zs, hL, hR, hLs, hRs, etaL, etaR, uL, uR, aL, aR, s, c;
+ 
+     // --- a closed conduit (control setting 0) has walls at its ends
+     if ( (m == 0 || m == nc) && Link[f->link].setting == 0.0 )
+@@ -1107,6 +1124,22 @@
+     zs = MAX(zL, zR);
+     hLs = MAX(0.0, etaL - zs);
+     hRs = MAX(0.0, etaR - zs);
++
++    // --- water entering the link from a node is a pool's water: the
++    //     ghost may carry the adjacent cell's velocity (dynamic wave's own
++    //     convention at a conduit end) but no faster than critical flow at
++    //     the node's depth, so the face cannot hand the link more energy
++    //     than the node holds (FVL-15)
++    if ( m == 0 && uL > 0.0 )
++    {
++        c = celerity(f, hLs);
++        if ( uL > c ) uL = c;
++    }
++    else if ( m == nc && uR < 0.0 )
++    {
++        c = celerity(f, hRs);
++        if ( uR < -c ) uR = -c;
++    }
+     aL = areaOf(f, hLs);
+     aR = areaOf(f, hRs);
+     hllFlux(f, hLs, aL, uL, hRs, aR, uR, &f->fm[m], &f->fq[m], &s);

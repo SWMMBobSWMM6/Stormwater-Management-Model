@@ -1,0 +1,57 @@
+# WebAssembly engines vs native builds, 2026-10-21
+# wasm: emcc 3.1.51 (git c0c2ca1) + system clang/LLVM 18 + Binaryen 116, -O2 -sSINGLE_FILE=1 -sMODULARIZE=1 -sENVIRONMENT=web,worker -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=2MB
+# native: gcc 13.3 -O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 (the tested binaries)
+# sha256:
+#   249d5b3853ad82c55e2ca5a118a693143ddef05485040bbd82e1833912d4641c  swmm524_stock.js
+#   69996b70fedf1e5e27302e6f92ee0785a060ac63270ed5e2b4bbabe919303fe2  swmm524_fvlink.js
+# A = .out byte-identical and .rpt identical apart from run-time stamps
+# B = .out byte-identical, .rpt differs (lines counted)
+# C = .out differs (largest link-flow and node-depth difference, share of values that differ)
+# E = neither wrote a .out and the reports agree; E* = same error, message differs only in file path
+
+## fv
+B fv.models.chain30_C4_c12_fv 1 rpt lines differ
+B fv.models.chain30_all_fv 6 rpt lines differ
+B fv.models.chain30_fv4 1 rpt lines differ
+C fv.models.chain70_all_fv maxdQ=0.197 cfs of peak 61.94 (3.2e-03); maxdY=0.0347 ft of 12; 2.23% of values differ
+B fv.models.channel_C2_fv 2 rpt lines differ
+B fv.gates.chain_fv 1 rpt lines differ
+B fv.models.mixed_4fv_fv 4 rpt lines differ
+B fv.review.ex_fv 3 rpt lines differ
+B fv.review.longid 1 rpt lines differ
+E fv.review.pump2_fv 
+E fv.review.pump3_fv 
+E fv.review.pump_fv 
+B fv.review.q_fv 4 rpt lines differ
+B fv.review.rev_fv 1 rpt lines differ
+C fv.review.rev_fvall maxdQ=0.441 cfs of peak 29.82 (1.5e-02); maxdY=0.194 ft of 6.056; 1.29% of values differ
+COUNTS {'A': 52, 'B': 10, 'C': 2, 'E': 3}
+
+## fv_nr
+C fvnr.examples.Example1 maxdQ=0.023 cfs of peak 18.21 (1.3e-03); maxdY=0.000912 ft of 3; 4.14% of values differ
+B fvnr.examples.Example3 24 rpt lines differ
+C fvnr.swc.swc1 maxdQ=0 cfs of peak 0 (0.0e+00); maxdY=0 ft of 0; 0.00% of values differ
+C fvnr.update_v5111.gate_control_2 maxdQ=3.73e-09 cfs of peak 585.8 (6.4e-12); maxdY=1.16e-10 ft of 25.47; 0.00% of values differ
+E* fvnr.update_v5111.ncdc_format 
+C fvnr.update_v52.CoS-Reduced-Inlets maxdQ=4.55e-13 cfs of peak 1.93 (2.4e-13); maxdY=0 ft of 2.487; 0.00% of values differ
+C fvnr.update_v52.CoS-Reduced-Outlets maxdQ=1.46e-11 cfs of peak 1.735 (8.4e-12); maxdY=0 ft of 2.108; 0.00% of values differ
+C fvnr.user.user5 maxdQ=16.2 cfs of peak 1962 (8.3e-03); maxdY=0.0146 ft of 14.02; 5.93% of values differ
+COUNTS {'C': 6, 'A': 65, 'B': 1, 'E*': 1}
+
+## st_nr
+C st.examples.Example1 maxdQ=0.023 cfs of peak 18.21 (1.3e-03); maxdY=0.000912 ft of 3; 4.14% of values differ
+B st.examples.Example3 24 rpt lines differ
+C st.swc.swc1 maxdQ=0 cfs of peak 0 (0.0e+00); maxdY=0 ft of 0; 0.00% of values differ
+C st.update_v5111.gate_control_2 maxdQ=3.73e-09 cfs of peak 585.8 (6.4e-12); maxdY=1.16e-10 ft of 25.47; 0.00% of values differ
+E* st.update_v5111.ncdc_format 
+C st.update_v52.CoS-Reduced-Inlets maxdQ=4.55e-13 cfs of peak 1.93 (2.4e-13); maxdY=0 ft of 2.487; 0.00% of values differ
+C st.update_v52.CoS-Reduced-Outlets maxdQ=1.46e-11 cfs of peak 1.735 (8.4e-12); maxdY=0 ft of 2.108; 0.00% of values differ
+C st.user.user5 maxdQ=16.2 cfs of peak 1962 (8.3e-03); maxdY=0.0146 ft of 14.02; 5.93% of values differ
+COUNTS {'C': 6, 'A': 65, 'B': 1, 'E*': 1}
+
+## null gate inside wasm: stock wasm vs FV wasm, 73 EPA models, no [FV_LINKS]
+73 of 73 identical (.out bytes; .rpt bar run stamps). ncdc_format stops with ERROR 317 in both.
+
+## cause check: native clang 18 -O2 (glibc) vs native gcc 13.3 -O2 (glibc), stock
+Example1, user5, Example3: clang-native .out == gcc-native .out. Example3: clang-native .out == wasm .out.
+So the compiler is not what separates wasm from native on Example1 and user5; the remaining difference is the math library (musl in emscripten, glibc native) or wasm codegen, not isolated function by function.

@@ -1,0 +1,8 @@
+# .out of every run, build before the FVL-13 fix (swmm5_fv_prev) vs final build (FVL-13 and FVL-14 fixed),
+# scripts/prev_build_cmp.sh: 43 test-network, gate and probe models plus the 37 sweep models.
+# DIFF here means the two .out files differ OR neither run wrote one: pump_fv, pump2_fv and
+# pump3_fv stop with the same ERROR 116 on both builds and write no .out.
+DIFF pump2_fv
+DIFF pump3_fv
+DIFF pump_fv
+SUMMARY same=77 different=3

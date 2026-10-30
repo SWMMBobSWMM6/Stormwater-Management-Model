@@ -1,0 +1,45 @@
+OpenSWMM statements in the technical description, checked against
+HydroCouple/openswmm.engine, branch develop, commit 8dd7387c0c9da87446eb7027a9a030f3fff9776e
+(2026-10-07 02:38:14 -0400  Ignore local plans and reviews), shallow clone read 2026-10-17.
+
+1. FV routing is one global choice that meshes every conduit
+   src/engine/input/handlers/OptionsHandler.cpp:146:            else if (rv == "FV" || rv == "FINITE_VOLUME")
+   src/engine/input/handlers/OptionsHandler.cpp:147-                opt.routing_model = RoutingModel::FV;
+   src/engine/hydraulics/fv/NetworkMeshBuilder.cpp:244:                "FLOW_ROUTING FV requires every conduit to carry real geometry.");
+
+2. Node ghost: head from the node, velocity from the interior cell
+   ExplicitFvSolver.cpp:1059-1061             // Node ghost: depth from the node head over the conduit invert at
+   ExplicitFvSolver.cpp:1059-1061             // this end, velocity extrapolated from the interior cell. Sending it
+   ExplicitFvSolver.cpp:1059-1061             // through the SAME Riemann solver as an interior face is what gives
+   ExplicitFvSolver.cpp:1154-1155         // The ghost inherits the interior cell's velocity, expressed in the
+   ExplicitFvSolver.cpp:1154-1155         // face frame — resolve it first, regardless of which side the node is on.
+
+3. Artificial half-cell bed step at manholes; remedy is more cells
+   Chapter8-FiniteVolume.md:97-100 conduit with no length target. **One cell per conduit is available but
+   Chapter8-FiniteVolume.md:97-100 is not a supported operating point.** A cell-centred scheme places the
+   Chapter8-FiniteVolume.md:97-100 cell's bed at its mid-point elevation, so a conduit meshed as a single
+   Chapter8-FiniteVolume.md:97-100 cell presents an artificial bed step of half the conduit's fall at every
+   Chapter8-FiniteVolume.md:1270-1272 an unresolved mesh is not a drop-in substitute for dynamic wave
+   Chapter8-FiniteVolume.md:1270-1272 analysis. The mechanism is the artificial bed step of §8.3 rather than
+   Chapter8-FiniteVolume.md:1270-1272 numerical diffusion, so second-order reconstruction does not remove it.
+
+   Note: Chapter 8 attributes this error to the bed step 'rather than numerical
+   diffusion'. The technical description therefore names the bed step as the
+   likely cause, and (item 4) names the dissipation at node faces as a second
+   contributor; the split between the two was not measured.
+
+4. Exception to item 2: at a junction joining exactly two conduits that the solver treats
+   as pass-through, the ghost presents the far cell's state, and the code names the
+   split-Riemann dissipation at node faces as a source of backwater:
+   ExplicitFvSolver.cpp:1069-1076             // PASS-THROUGH junction: the ghost presents the FAR cell's full
+   ExplicitFvSolver.cpp:1069-1076             // centred state — surface, depth, bed — so together with the far
+   ExplicitFvSolver.cpp:1069-1076             // velocity (computeFaceFlux) the two node faces reproduce the
+   ExplicitFvSolver.cpp:1069-1076             // direct spliced face this pair replaces. Presenting the solved
+   ExplicitFvSolver.cpp:1069-1076             // node head at the node invert instead loses ~1 mm of head per
+   ExplicitFvSolver.cpp:1069-1076             // junction to split-Riemann dissipation, which a 199-junction
+   ExplicitFvSolver.cpp:1069-1076             // subcritical chain integrates into a 0.23 m backwater
+   ExplicitFvSolver.cpp:1069-1076             // (macdonald-long-sub L1 0.228 → 0.0064 with this treatment).
+   ExplicitFvSolver.cpp:156-159         // Static half of the pass-through test: exactly two incident conduit
+   ExplicitFvSolver.cpp:156-159         // faces, neither carrying a culvert inlet or a flap gate (those need
+   ExplicitFvSolver.cpp:156-159         // their head- and direction-dependent laws applied against a solved
+   ExplicitFvSolver.cpp:156-159         // node state, not bypassed by a direct face).

@@ -1,0 +1,38 @@
+--- a/src/solver/fvlink.c
++++ b/src/solver/fvlink.c
+@@ -1038,6 +1038,20 @@
+ 
+ //=============================================================================
+ 
++static double waveSpeed(const TFvLink* f, double h, double a)
++//
++//  Purpose: gravity wave celerity sqrt(g*A/W) at depth h (0 when dry).
++//
++{
++    double w;
++    if ( h <= 0.0 || a <= f->aEps ) return 0.0;
++    w = widthOf(f, h);
++    if ( w <= 0.0 ) return 0.0;
++    return sqrt(GRAVITY * a / w);
++}
++
++//=============================================================================
++
+ double faceFlux(TFvLink* f, int m, double hd1, double hd2)
+ //
+ //  Input:   f = FV link
+@@ -1109,6 +1123,14 @@
+     hRs = MAX(0.0, etaR - zs);
+     aL = areaOf(f, hLs);
+     aR = areaOf(f, hRs);
++
++    // --- an end ghost takes its velocity from the Riemann invariant that
++    //     reaches the face from inside the link (u + 2c at the downstream
++    //     end, u - 2c at the upstream end), evaluated on the reconstructed
++    //     depths, so a still pool stays still and a deep pool decelerates
++    //     what flows into it (FVL-15)
++    if ( m == nc )      uR = uL + 2.0 * (waveSpeed(f, hLs, aL) - waveSpeed(f, hRs, aR));
++    else if ( m == 0 )  uL = uR + 2.0 * (waveSpeed(f, hLs, aL) - waveSpeed(f, hRs, aR));
+     hllFlux(f, hLs, aL, uL, hRs, aR, uR, &f->fm[m], &f->fq[m], &s);
+ 
+     // --- an outfall with a flap gate admits no flow into the pipe

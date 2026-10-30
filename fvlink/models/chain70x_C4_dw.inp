@@ -1,0 +1,83 @@
+[TITLE]
+chain
+
+[OPTIONS]
+FLOW_UNITS           CFS
+INFILTRATION         HORTON
+FLOW_ROUTING         DYNWAVE
+LINK_OFFSETS         DEPTH
+START_DATE           01/01/2026
+START_TIME           00:00:00
+REPORT_START_DATE    01/01/2026
+REPORT_START_TIME    00:00:00
+END_DATE             01/01/2026
+END_TIME             06:00:00
+DRY_DAYS             0
+REPORT_STEP          00:00:30
+WET_STEP             00:05:00
+DRY_STEP             00:05:00
+ROUTING_STEP         5
+VARIABLE_STEP        0.75
+LENGTHENING_STEP     0
+MIN_SURFAREA         12.566
+SURCHARGE_METHOD     EXTRAN
+INERTIAL_DAMPING     PARTIAL
+NORMAL_FLOW_LIMITED  BOTH
+ALLOW_PONDING        NO
+HEAD_TOLERANCE       0.005
+MAX_TRIALS           8
+THREADS              1
+
+[JUNCTIONS]
+;;Name Elev MaxDepth InitDepth SurDepth Aponded
+J1           100.000  12.00  0.000   0.00 0
+J2            98.500  12.00  0.000   0.00 0
+J3            97.000  12.00  0.000   0.00 0
+J4            95.500  12.00  0.000   0.00 0
+J5            94.000  12.00  0.000   0.00 0
+J6            92.500  12.00  0.000   0.00 0
+J7            91.000  12.00  0.000   0.00 0
+J8            89.500  12.00  0.000   0.00 0
+
+[OUTFALLS]
+;;Name Elev Type StageData Gated
+O1 88.000 FREE  NO
+
+[CONDUITS]
+;;Name From To Length n InOff OutOff InitFlow MaxFlow
+C1       J1       J2         300.00 0.0130  0.000  0.000 0 0
+C2       J2       J3         300.00 0.0130  0.000  0.000 0 0
+C3       J3       J4         300.00 0.0130  0.000  0.000 0 0
+C4       J4       J5         300.00 0.0130  0.000  0.000 0 0
+C5       J5       J6         300.00 0.0130  0.000  0.000 0 0
+C6       J6       J7         300.00 0.0130  0.000  0.000 0 0
+C7       J7       J8         300.00 0.0130  0.000  0.000 0 0
+C8       J8       O1         300.00 0.0130  0.000  0.000 0 0
+
+[XSECTIONS]
+;;Link Shape G1 G2 G3 G4 Barrels
+C1 CIRCULAR 3.0 0 0 0 1
+C2 CIRCULAR 3.0 0 0 0 1
+C3 CIRCULAR 3.0 0 0 0 1
+C4 CIRCULAR 3.0 0 0 0 1
+C5 CIRCULAR 3.0 0 0 0 1
+C6 CIRCULAR 3.0 0 0 0 1
+C7 CIRCULAR 3.0 0 0 0 1
+C8 CIRCULAR 3.0 0 0 0 1
+
+[INFLOWS]
+;;Node Constituent TimeSeries Type Mfactor Sfactor Baseline Pattern
+J1 FLOW HYD FLOW 1.0 1.0
+
+[TIMESERIES]
+HYD                0.0000      1.000
+HYD                0.2500      1.000
+HYD                0.7500     70.000
+HYD                1.7500      1.000
+HYD                6.0000      1.000
+
+[REPORT]
+INPUT NO
+CONTROLS NO
+NODES ALL
+LINKS ALL

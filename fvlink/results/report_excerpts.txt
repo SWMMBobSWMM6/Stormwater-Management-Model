@@ -1,0 +1,53 @@
+Report excerpts from the final build, runs/ on 2026-10-17
+
+== runs/tree_dw.rpt  (Routing Time Step Summary)
+  Minimum Time Step           :     0.53 sec
+  Average Time Step           :     1.14 sec
+  Maximum Time Step           :    10.00 sec
+
+== runs/tree_noshort_dw.rpt  (Routing Time Step Summary)
+  Minimum Time Step           :     1.16 sec
+  Average Time Step           :     9.87 sec
+  Maximum Time Step           :    10.00 sec
+
+== runs/tree_fv.rpt  (Routing Time Step Summary)
+  Minimum Time Step           :     1.26 sec
+  Average Time Step           :     9.89 sec
+  Maximum Time Step           :    10.00 sec
+
+== runs/tree_fv.rpt
+  Finite-Volume Link Summary
+  **************************
+  
+                              Cell  Substeps  Substeps     Min   Volume      Floor
+                             Length   per      per Solve  Substep  Balance     Hits
+  Link               Cells    ft     Step       Max      sec     Err %
+  ---------------------------------------------------------------------------------
+  CT21                   4     2.50     104.7       114   0.0878 -1.9e-14        0
+  
+
+== runs/chain30_C4_c12_fv.rpt
+  Finite-Volume Link Summary
+  **************************
+  
+                              Cell  Substeps  Substeps     Min   Volume      Floor
+                             Length   per      per Solve  Substep  Balance     Hits
+  Link               Cells    ft     Step       Max      sec     Err %
+  ---------------------------------------------------------------------------------
+  C4                    12    25.00       5.4         6   0.9084  3.1e-13        0
+  
+
+== runs/channel_C2_fv.out and channel_C2_dw.out, last report period (steady 60 cfs)
+  FV C1 depth 1.6632 ft  flow 60.0000 cfs
+  FV C2 depth 1.6592 ft  flow 60.0001 cfs
+  FV C3 depth 1.6559 ft  flow 60.0000 cfs
+  DW C1 depth 1.6559 ft  flow 60.0000 cfs
+  DW C2 depth 1.6559 ft  flow 60.0000 cfs
+  DW C3 depth 1.6559 ft  flow 60.0000 cfs
+
+== work/sweep/user4.fv.rpt, Flow Classification Summary row of the FV link (Adjusted/Actual Length)
+                      Adjusted    ---------- Fraction of Time in Flow Class ---------- 
+                       /Actual         Up    Down  Sub   Sup   Up    Down  Norm  Inlet 
+  Conduit               Length    Dry  Dry   Dry   Crit  Crit  Crit  Crit  Ltd   Ctrl  
+  -------------------------------------------------------------------------------------
+  23916007-23916003       1.00   0.00  0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00

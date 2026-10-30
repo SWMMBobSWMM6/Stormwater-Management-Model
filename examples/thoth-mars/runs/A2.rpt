@@ -1,0 +1,290 @@
+
+  EPA STORM WATER MANAGEMENT MODEL - VERSION 5.2 (Build 5.2.4)
+  ------------------------------------------------------------
+
+  The Thoth Canal: headworks to Colony Basin (Thaw on the Thoth) 
+  
+  ****************
+  Analysis Options
+  ****************
+  Flow Units ............... CFS
+  Process Models:
+    Rainfall/Runoff ........ NO
+    RDII ................... NO
+    Snowmelt ............... NO
+    Groundwater ............ NO
+    Flow Routing ........... YES
+    Ponding Allowed ........ NO
+    Water Quality .......... NO
+  Flow Routing Method ...... DYNWAVE
+  Surcharge Method ......... EXTRAN
+  Starting Date ............ 04/10/2097 00:00:00
+  Ending Date .............. 04/14/2097 00:00:00
+  Antecedent Dry Days ...... 0.0
+  Report Time Step ......... 00:05:00
+  Routing Time Step ........ 30.00 sec
+  Variable Time Step ....... YES
+  Maximum Trials ........... 8
+  Number of Threads ........ 1
+  Head Tolerance ........... 0.005000 ft
+  
+  
+  **************************        Volume        Volume
+  Flow Routing Continuity        acre-feet      10^6 gal
+  **************************     ---------     ---------
+  Dry Weather Inflow .......         0.000         0.000
+  Wet Weather Inflow .......         0.000         0.000
+  Groundwater Inflow .......         0.000         0.000
+  RDII Inflow ..............         0.000         0.000
+  External Inflow ..........     10991.769      3581.832
+  External Outflow .........     10848.592      3535.176
+  Flooding Loss ............         0.000         0.000
+  Evaporation Loss .........         0.000         0.000
+  Exfiltration Loss ........         0.000         0.000
+  Initial Stored Volume ....       454.705       148.173
+  Final Stored Volume ......       600.406       195.651
+  Continuity Error (%) .....        -0.022
+  
+  
+  ***************************
+  Time-Step Critical Elements
+  ***************************
+  Link CULVERT (100.00%)
+  
+  
+  ********************************
+  Highest Flow Instability Indexes
+  ********************************
+  All links are stable.
+  
+  
+  *********************************
+  Most Frequent Nonconverging Nodes
+  *********************************
+  Convergence obtained at all time steps.
+  
+  
+  *************************
+  Routing Time Step Summary
+  *************************
+  Minimum Time Step           :     0.26 sec
+  Average Time Step           :     0.42 sec
+  Maximum Time Step           :    30.00 sec
+  % of Time in Steady State   :     0.00
+  Average Iterations per Step :     2.00
+  % of Steps Not Converging   :     0.00
+  Time Step Frequencies       :
+     30.000 -  9.587 sec      :     0.00 %
+      9.587 -  3.064 sec      :     0.00 %
+      3.064 -  0.979 sec      :     0.00 %
+      0.979 -  0.313 sec      :    65.03 %
+      0.313 -  0.100 sec      :    34.97 %
+  
+  
+  ******************
+  Node Depth Summary
+  ******************
+  
+  ---------------------------------------------------------------------------------
+                                 Average  Maximum  Maximum  Time of Max    Reported
+                                   Depth    Depth      HGL   Occurrence   Max Depth
+  Node                 Type         Feet     Feet     Feet  days hr:min        Feet
+  ---------------------------------------------------------------------------------
+  HW                   JUNCTION     6.06    10.54   210.54     1  18:04       10.54
+  U1                   JUNCTION     6.06    10.53   208.95     1  18:21       10.53
+  U2                   JUNCTION     6.05    10.51   207.35     1  18:33       10.51
+  U3                   JUNCTION     6.05    10.48   205.73     1  18:41       10.48
+  U4                   JUNCTION     6.02    10.41   204.07     1  18:48       10.41
+  U4X                  JUNCTION     6.02    10.40   204.06     1  18:48       10.40
+  U5                   JUNCTION     5.97    10.23   202.31     1  18:54       10.23
+  U6                   JUNCTION     5.84     9.82   200.32     1  18:59        9.82
+  U7                   JUNCTION     5.30     8.10   197.00     1  19:04        8.10
+  U8                   JUNCTION     1.40     3.00   190.32     0  00:00        2.56
+  CB                   JUNCTION     6.09    10.60   177.92     1  19:20       10.60
+  L1                   JUNCTION     6.13    10.65   176.39     1  19:31       10.65
+  L2                   JUNCTION     6.28    10.76   174.92     1  19:42       10.76
+  L3                   JUNCTION     6.76    10.96   173.54     1  19:53       10.96
+  L4                   JUNCTION     7.58    11.31   172.30     1  20:04       11.31
+  L5                   JUNCTION     8.65    11.86   171.26     1  20:16       11.86
+  L6                   JUNCTION     9.88    12.62   170.44     1  20:29       12.62
+  OC1                  JUNCTION     0.00     0.00   151.82     0  00:00        0.00
+  OUTJ                 JUNCTION     2.50     4.81   160.95     1  20:30        4.81
+  OLDSINK              OUTFALL      0.00     0.00   149.82     0  00:00        0.00
+  SINK                 OUTFALL      2.43     4.81   151.95     1  20:31        4.81
+  TOWN                 OUTFALL      0.00     0.00   187.14     0  00:00        0.00
+  BASIN                STORAGE     10.55    13.28   170.42     1  20:30       13.28
+  BAY                  STORAGE     12.60    17.02   172.16     1  20:02       17.02
+  
+  
+  *******************
+  Node Inflow Summary
+  *******************
+  
+  -------------------------------------------------------------------------------------------------
+                                  Maximum  Maximum                  Lateral       Total        Flow
+                                  Lateral    Total  Time of Max      Inflow      Inflow     Balance
+                                   Inflow   Inflow   Occurrence      Volume      Volume       Error
+  Node                 Type           CFS      CFS  days hr:min    10^6 gal    10^6 gal     Percent
+  -------------------------------------------------------------------------------------------------
+  HW                   JUNCTION   4200.00  4200.00     1  18:00    3.58e+03    3.58e+03      -0.014
+  U1                   JUNCTION      0.00  4199.30     1  18:03           0    3.58e+03      -0.026
+  U2                   JUNCTION      0.00  4197.86     1  18:11           0    3.58e+03      -0.026
+  U3                   JUNCTION      0.00  4196.56     1  18:20           0    3.58e+03      -0.026
+  U4                   JUNCTION      0.00  4195.51     1  18:32           0    3.58e+03      -0.012
+  U4X                  JUNCTION      0.00  4195.08     1  18:39           0    3.59e+03      -0.013
+  U5                   JUNCTION      0.00  4194.85     1  18:45           0    3.59e+03      -0.025
+  U6                   JUNCTION      0.00  4194.43     1  18:53           0    3.59e+03      -0.020
+  U7                   JUNCTION      0.00  4194.23     1  19:00           0    3.59e+03       0.021
+  U8                   JUNCTION      0.00  4194.18     1  19:06           0    3.59e+03      -0.069
+  CB                   JUNCTION      0.00  4194.17     1  19:07           0    3.59e+03      -0.014
+  L1                   JUNCTION      0.00  4193.56     1  19:12           0    3.59e+03      -0.023
+  L2                   JUNCTION      0.00  4192.08     1  19:21           0    3.59e+03      -0.013
+  L3                   JUNCTION      0.00  4190.50     1  19:31           0    3.59e+03       0.039
+  L4                   JUNCTION      0.00  4188.85     1  19:40           0    3.59e+03       0.125
+  L5                   JUNCTION      0.00  4187.13     1  19:50           0    3.59e+03       0.230
+  L6                   JUNCTION      0.00  4185.43     1  19:58           0    3.58e+03       0.190
+  OC1                  JUNCTION      0.00     0.00     0  00:00           0           0       0.000 gal
+  OUTJ                 JUNCTION      0.00  4037.98     1  20:30           0    3.15e+03       0.026
+  OLDSINK              OUTFALL       0.00     0.00     0  00:00           0           0       0.000 gal
+  SINK                 OUTFALL       0.00  4031.36     1  20:31           0    3.15e+03       0.000
+  TOWN                 OUTFALL       0.00   150.00     0  00:00           0         388       0.000
+  BASIN                STORAGE       0.00  4645.32     1  19:53           0    4.05e+03      -0.002
+  BAY                  STORAGE       0.00   878.60     1  08:19           0         790       0.070
+  
+  
+  **********************
+  Node Surcharge Summary
+  **********************
+  
+  No nodes were surcharged.
+  
+  
+  *********************
+  Node Flooding Summary
+  *********************
+  
+  No nodes were flooded.
+  
+  
+  **********************
+  Storage Volume Summary
+  **********************
+  
+  ------------------------------------------------------------------------------------------------
+                         Average    Avg   Evap  Exfil     Maximum    Max    Time of Max    Maximum
+                          Volume   Pcnt   Pcnt   Pcnt      Volume   Pcnt     Occurrence    Outflow
+  Storage Unit          1000 ft³   Full   Loss   Loss    1000 ft³   Full    days hr:min        CFS
+  ------------------------------------------------------------------------------------------------
+  BASIN                16965.941   71.1    0.0    0.0   21680.284   90.9       1  20:30    4783.44
+  BAY                     63.006   63.0    0.0    0.0      85.112   85.1       1  20:02     755.77
+  
+  
+  ***********************
+  Outfall Loading Summary
+  ***********************
+  
+  -----------------------------------------------------------
+                         Flow       Avg       Max       Total
+                         Freq      Flow      Flow      Volume
+  Outfall Node           Pcnt       CFS       CFS    10^6 gal
+  -----------------------------------------------------------
+  OLDSINK                0.00      0.00      0.00       0.000
+  SINK                  95.22   1732.40   4031.36    3147.150
+  TOWN                 100.00    150.00    150.00     387.763
+  -----------------------------------------------------------
+  System                65.07   1882.40   4181.36    3534.913
+  
+  
+  ********************
+  Link Flow Summary
+  ********************
+  
+  -----------------------------------------------------------------------------
+                                 Maximum  Time of Max   Maximum    Max/    Max/
+                                  |Flow|   Occurrence   |Veloc|    Full    Full
+  Link                 Type          CFS  days hr:min    ft/sec    Flow   Depth
+  -----------------------------------------------------------------------------
+  UT1                  CONDUIT   4199.30     1  18:03      6.53    0.58    0.75
+  UT2                  CONDUIT   4197.86     1  18:11      6.54    0.58    0.75
+  UT3                  CONDUIT   4196.56     1  18:20      6.56    0.58    0.75
+  UT4                  CONDUIT   4195.51     1  18:32      6.60    0.58    0.75
+  CULVERT              CONDUIT   4195.08     1  18:39     10.08    1.00    0.74
+  UT5                  CONDUIT   4194.85     1  18:45      6.71    0.58    0.74
+  UT6                  CONDUIT   4194.43     1  18:53      6.96    0.58    0.72
+  UT7                  CONDUIT   4194.23     1  19:00      8.08    0.58    0.64
+  UT8                  CONDUIT   4194.18     1  19:06     15.55    0.58    0.38
+  CHUTE                CONDUIT   4194.17     1  19:07     31.21    0.12    0.63
+  LT1                  CONDUIT   4193.56     1  19:12      6.45    0.58    0.76
+  LT2                  CONDUIT   4192.08     1  19:21      6.38    0.58    0.76
+  LT3                  CONDUIT   4190.50     1  19:31      6.25    0.58    0.78
+  LT4                  CONDUIT   4188.85     1  19:40      6.04    0.58    0.80
+  LT5                  CONDUIT   4187.13     1  19:50      5.73    0.58    0.83
+  LT6                  CONDUIT   4185.43     1  19:58      5.31    0.58    0.87
+  LT7                  CONDUIT   4190.03     1  20:03      7.36    0.30    0.92
+  INTAKE               CONDUIT    878.60     1  08:19      8.69    0.20    0.91
+  OLDCAN               CONDUIT      0.00     0  00:00      0.00    0.00    0.00
+  OUTCAN               CONDUIT   4031.36     1  20:31     12.05    0.15    0.34
+  INTAKEP              PUMP       150.00     0  00:00              1.00
+  OLDGATE              ORIFICE      0.00     0  00:00                      0.00
+  SILL                 WEIR      4037.98     1  20:30                      0.66
+  
+  
+  ***************************
+  Flow Classification Summary
+  ***************************
+  
+  -------------------------------------------------------------------------------------
+                      Adjusted    ---------- Fraction of Time in Flow Class ---------- 
+                       /Actual         Up    Down  Sub   Sup   Up    Down  Norm  Inlet 
+  Conduit               Length    Dry  Dry   Dry   Crit  Crit  Crit  Crit  Ltd   Ctrl  
+  -------------------------------------------------------------------------------------
+  UT1                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.20  0.00
+  UT2                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.21  0.00
+  UT3                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.22  0.00
+  UT4                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.41  0.00
+  CULVERT                 1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  UT5                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.22  0.00
+  UT6                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.41  0.00
+  UT7                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  UT8                     1.00   0.00  0.00  0.00  0.59  0.41  0.00  0.00  0.00  0.00
+  CHUTE                   1.00   0.00  0.00  0.00  0.76  0.24  0.00  0.00  1.00  0.00
+  LT1                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.22  0.00
+  LT2                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.35  0.00
+  LT3                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.05  0.00
+  LT4                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  LT5                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  LT6                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  LT7                     1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  INTAKE                  1.00   0.00  0.00  0.00  1.00  0.00  0.00  0.00  0.00  0.00
+  OLDCAN                  1.00   1.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00
+  OUTCAN                  1.00   0.07  0.00  0.00  0.73  0.20  0.00  0.00  0.06  0.00
+  
+  
+  *************************
+  Conduit Surcharge Summary
+  *************************
+  
+  ----------------------------------------------------------------------------
+                                                           Hours        Hours 
+                         --------- Hours Full --------   Above Full   Capacity
+  Conduit                Both Ends  Upstream  Dnstream   Normal Flow   Limited
+  ----------------------------------------------------------------------------
+  CHUTE                       0.01      0.01     10.14      0.01         0.01
+  INTAKE                      0.01      0.01      5.74      0.01         0.01
+  
+  
+  ***************
+  Pumping Summary
+  ***************
+  
+  ---------------------------------------------------------------------------------------------------------
+                                                  Min       Avg       Max     Total     Power    % Time Off
+                        Percent   Number of      Flow      Flow      Flow    Volume     Usage    Pump Curve
+  Pump                 Utilized   Start-Ups       CFS       CFS       CFS  10^6 gal     Kw-hr    Low   High
+  ---------------------------------------------------------------------------------------------------------
+  INTAKEP                100.00           1      0.00    150.00    150.00   387.763  24322.41    0.0    0.0
+  
+
+  Analysis begun on:  Wed Oct 21 22:15:46 2026
+  Analysis ended on:  Wed Oct 21 22:15:54 2026
+  Total elapsed time: 00:00:08

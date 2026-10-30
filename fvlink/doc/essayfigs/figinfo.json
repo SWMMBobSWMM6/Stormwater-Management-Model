@@ -1,0 +1,116 @@
+{
+ "ratios": {
+  "e01_global_vs_link.png": 0.4276,
+  "e02_linknode.png": 0.5404,
+  "e03_tree.png": 0.324,
+  "e04_courant.png": 0.5199,
+  "e05_stepfreq.png": 0.4743,
+  "e06_ledger.png": 0.3882,
+  "e07_dambreak.png": 0.4575,
+  "e08_volbal.png": 0.4698,
+  "e09_lake.png": 0.4138,
+  "e10_slot.png": 0.5376,
+  "e11_substep.png": 0.5174,
+  "e12_ghost.png": 0.4325,
+  "e13_fvl1.png": 0.3648,
+  "e14_euler.png": 0.4674,
+  "e15_passes.png": 0.4621,
+  "e16_booking.png": 0.4293,
+  "e17_quality.png": 0.3947,
+  "e18_closure.png": 0.5347,
+  "e19_turns.png": 0.3725,
+  "e20_user5.png": 0.4836,
+  "e21_treepeaks.png": 0.4388,
+  "e22_sweeppeaks.png": 0.4836,
+  "e23_substeps.png": 0.4562,
+  "e24_defects.png": 0.4945
+ },
+ "info": {
+  "courant": [
+   0.5274064540863037,
+   5.026411533355713
+  ],
+  "dambreak": [
+   1.1034938538371066,
+   4.128093048194364,
+   7.548254680286649
+  ],
+  "volbal": [
+   51,
+   2.7e-12,
+   0
+  ],
+  "lake": [
+   [
+    "stock dynamic wave",
+    0.0
+   ],
+   [
+    "all four conduits FV",
+    1.22e-11
+   ],
+   [
+    "C4 only FV",
+    0.0
+   ],
+   [
+    "C1 only FV",
+    0.00446
+   ],
+   [
+    "C2 only FV",
+    0.00365
+   ],
+   [
+    "C3 only FV",
+    0.00337
+   ],
+   [
+    "C2 and C3 FV",
+    0.00119
+   ],
+   [
+    "control: stock, one node +1e-7 ft",
+    0.00416
+   ]
+  ],
+  "cmax_below_crown": 19.9788,
+  "euler": [
+   25.57083395656288,
+   -1.7548863428779455,
+   1.7548863428779455
+  ],
+  "passes": [
+   [
+    3603402,
+    89316,
+    106,
+    0,
+    0
+   ],
+   [
+    17410340,
+    474879,
+    137,
+    82,
+    18
+   ]
+  ],
+  "closure_max_roundtrip": 3.4e-14,
+  "turns": [
+   45,
+   449,
+   38260.46489038779,
+   964.898911178112
+  ],
+  "user5_min": [
+   -486.3477478027344,
+   -0.0025224811397492886
+  ],
+  "treepeaks": [
+   0.5313555002212524,
+   0.3350427746772766,
+   0.8022940158843994
+  ]
+ }
+}

@@ -1,0 +1,26 @@
+user2, link TW01290, report step 5 s
+  stock  peak 1921.2 cfs  min -935.3622 cfs  reversed periods 83 (415 s, span 12.53-12.88 h)  volume upstream 165921.0893 ft3
+         net volume 7.76332e+06 ft3  total variation 38260 cfs  routing continuity 0.285 %  instability: All links are stable.
+         flow turns 45; the series is every routing step, so SWMM's index = 0.26
+         TW01300 peak 890.7 cfs
+         TW01280 peak 536.8 cfs
+  FV     peak 449.3 cfs  min 0.0000 cfs  reversed periods 0 (0 s, span none)  volume upstream -0.0000 ft3
+         net volume 7.76482e+06 ft3  total variation 965 cfs  routing continuity 0.280 %  instability: Link TW01290 (3)
+         flow turns 449; the series is every routing step, so SWMM's index = 2.60
+         TW01300 peak 628.7 cfs
+         TW01280 peak 448.8 cfs
+  |stock - FV| > 100 cfs from 737.7 to 781.9 min (a 44.2-min window), in 463 periods = 38.6 min in all
+  net volume FV/stock - 1: +0.019 %
+  system external outflow FV/stock - 1: +0.025 %  (572.897 vs 572.756, report units)
+
+user5, link LIB_9, report step 1 s
+  stock  peak 2119.8 cfs  min -486.3477 cfs  reversed periods 824 (824 s, span 0.14-1.76 h)  volume upstream 146995.6590 ft3
+         net volume 3.29678e+06 ft3  total variation 225965 cfs  routing continuity -2.352 %  instability: Link LIB_5 (6) Link LIB_2 (6) Link LIB_4 (5) Link LIB_8 (4) Link LIB_7 (3)
+         flow turns in this 1-s series 472 (routing step is shorter)
+  FV     peak 1407.9 cfs  min -0.0025 cfs  reversed periods 4 (4 s, span 0.13-0.13 h)  volume upstream 0.0079 ft3
+         net volume 3.26716e+06 ft3  total variation 84129 cfs  routing continuity -2.372 %  instability: Link LIB_5 (6) Link LIB_4 (6) Link LIB_2 (6) Link LIB_3 (5) Link LIB_6 (4)
+         flow turns in this 1-s series 775 (routing step is shorter)
+  |stock - FV| > 100 cfs from 9.1 to 113.5 min (a 104.5-min window), in 4619 periods = 77.0 min in all
+  net volume FV/stock - 1: -0.898 %
+  system external outflow FV/stock - 1: +0.048 %  (153.518 vs 153.444, report units)
+

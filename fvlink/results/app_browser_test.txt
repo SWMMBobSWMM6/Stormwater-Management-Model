@@ -1,0 +1,41 @@
+# FV Link Lab, headless Chromium (Playwright, /opt/pw-browsers) test of dist/index.html, 2026-10-21 (final build)
+# Each sample run through the page's own WebAssembly engines; the inputs the page built were then run
+# through the native gcc engines and the files compared. .rpt compared without the run-time stamps.
+# Console errors during the test: only the two cdnjs script loads (html2canvas, gif.js), which this sandbox blocks.
+
+00 400-pipe tree: the 10-ft pipe CT21 as FV | err 0/0 | wall 5.17s / 1.18s | avg step 1.14 -> 9.89 | cont -0.13 -> -0.132 | fv [{"id":"CT21","cells":4,"dx":2.5,"subPerStep":104.7,"maxPerSolve":114,"minSub":0.0878,"volBal":-1.9e-14,"floor":0}] | chart true peaks rows 401 | 8.2s
+01 EPA user2: the sloshing channel TW01290 as FV | err 0/0 | wall 1.88s / 3.47s | avg step 5 -> 5 | cont 0.285 -> 0.28 | fv [{"id":"TW01290","cells":22,"dx":24.73,"subPerStep":12,"maxPerSolve":56,"minSub":0.0906,"volBal":3.9e-13,"floor":0}] | chart true peaks rows 103 | 7.4s
+02 30 cfs chain: C4 as FV, 12 cells | err 0/0 | wall 0.13s / 0.21s | avg step 5 -> 5 | cont -0.057 -> -0.054 | fv [{"id":"C4","cells":12,"dx":25,"subPerStep":5.4,"maxPerSolve":6,"minSub":0.9084,"volBal":3.2e-13,"floor":0}] | chart true peaks rows 9 | 0.6s
+03 10-ft rectangular channel: C2 as FV, 80 cells | err 0/0 | wall 0.08s / 1.69s | avg step 5 -> 5 | cont -0.323 -> -0.323 | fv [{"id":"C2","cells":80,"dx":25,"subPerStep":10,"maxPerSolve":5,"minSub":1.1465,"volBal":-1.4e-15,"floor":0}] | chart true peaks rows 4 | 2.0s
+04 Storage outlet: C1 as FV | err 0/0 | wall 0.06s / 0.17s | avg step 5 -> 5 | cont -0.018 -> -0.017 | fv [{"id":"C1","cells":8,"dx":25,"subPerStep":9.1,"maxPerSolve":44,"minSub":0.1145,"volBal":-6.8e-14,"floor":0}] | chart true peaks rows 7 | 0.5s
+05 Surcharged chain (SLOT): C4 as FV | err 0/0 | wall 0.07s / 0.19s | avg step 4.99 -> 5 | cont -0.064 -> -0.061 | fv [{"id":"C4","cells":12,"dx":25,"subPerStep":11.9,"maxPerSolve":44,"minSub":0.1139,"volBal":1.9e-13,"floor":0}] | chart true peaks rows 9 | 0.5s
+06 Short 10-ft pipe in a chain: C3 as FV | err 0/0 | wall 0.20s / 0.34s | avg step 1.13 -> 10 | cont -0.064 -> -0.041 | fv [{"id":"C3","cells":4,"dx":2.5,"subPerStep":105.9,"maxPerSolve":111,"minSub":0.0905,"volBal":-3.8e-14,"floor":0}] | chart true peaks rows 9 | 0.7s
+07 Lake at rest: every conduit FV | err 0/0 | wall 0.03s / 1.03s | avg step 5 -> 5 | cont -1.366 -> 0 | fv [{"id":"C1","cells":12,"dx":25,"subPerStep":205.9,"maxPerSolve":103,"minSub":0.049,"volBal":-3.1e-11,"floor":0},{"id":"C2","cells":12,"dx":25,"subPerStep":205.9,"maxPerSolve":103,"minSub":0.049,"volBal":6.9e-10,"floor":0},{"id":"C3","cells":8,"dx":25,"subPerStep":205.9,"maxPerSolve":103,"minSub":0.049,"volBal":-8.4e-12,"floor":0},{"id":"C4","cells":4,"dx":25,"subPerStep":205.9,"maxPerSolve":103,"minSub":0.049,"volBal":1.2e-10,"floor":0}] | chart true peaks rows 5 | 1.8s
+08 Resonator: a dead-end manhole on an FV pipe | err 0/0 | wall 0.04s / 0.50s | avg step 5 -> 5 | cont -1.527 -> 0 | fv [{"id":"C1","cells":12,"dx":25,"subPerStep":82,"maxPerSolve":41,"minSub":0.1243,"volBal":-1e-12,"floor":0}] | chart true peaks rows 2 | 0.8s
+
+00 stock  .out same (12758582 bytes)  .rpt same
+00 fv  .out same (12758582 bytes)  .rpt same
+01 stock  .out same (18927335 bytes)  .rpt same
+01 fv  .out same (18927335 bytes)  .rpt DIFF
+02 stock  .out same (320314 bytes)  .rpt same
+02 fv  .out same (320314 bytes)  .rpt DIFF
+03 stock  .out same (32670 bytes)  .rpt same
+03 fv  .out same (32670 bytes)  .rpt DIFF
+04 stock  .out same (256866 bytes)  .rpt same
+04 fv  .out same (256866 bytes)  .rpt same
+05 stock  .out same (320314 bytes)  .rpt same
+05 fv  .out same (320314 bytes)  .rpt same
+06 stock  .out same (320314 bytes)  .rpt same
+06 fv  .out same (320314 bytes)  .rpt same
+07 stock  .out same (64778 bytes)  .rpt same
+07 fv  .out same (64778 bytes)  .rpt same
+08 stock  .out same (587846 bytes)  .rpt same
+08 fv  .out same (587846 bytes)  .rpt same
+
+page stock tree .out == runs/tree_dw.out (tested native): yes
+page FV tree .out == runs/tree_fv.out (tested native): yes
+report differences: the FV Link Summary volume-balance digit at 1e-13 % (user2, chain30, channel) and J2's time of max depth on a flat peak (channel)
+null check in the page on the tree: identical .out (12,758,582 bytes) and .rpt
+theme switch: Run-tab results text identical in dark and light, at 1280 and 375 px; no horizontal page scroll on any tab at 375 px
+Make a GIF: html2canvas 1.4.1 and gif.js 0.2.0 (same versions, from npm, routed in place of cdnjs) recorded and encoded a 5-frame GIF
+contrast-check.js: 34 checks, 0 below target, both themes

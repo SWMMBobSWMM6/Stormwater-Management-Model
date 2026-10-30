@@ -1,0 +1,14 @@
+IDENTICAL chain_fv 320314 bytes, threads used: 2
+IDENTICAL mixed_4fv_fv 256866 bytes, threads used: 1
+IDENTICAL lake_all_fv 64778 bytes, threads used: 1
+IDENTICAL resonator 587846 bytes, threads used: 1
+IDENTICAL q_fv 294329 bytes, threads used: 1
+IDENTICAL gate_fv 32830 bytes, threads used: 1
+IDENTICAL rev_fvall 53950 bytes, threads used: 1
+IDENTICAL chain70x_C4_fv 320314 bytes, threads used: 2
+IDENTICAL short_C3_fv 320314 bytes, threads used: 2
+IDENTICAL channel_C2_fv 32670 bytes, threads used: 1
+IDENTICAL tree_fv 12758582 bytes, threads used: 2
+IDENTICAL zz_user2__fv 1897895 bytes, threads used: 2
+IDENTICAL zz_user5__fv 3606445 bytes, threads used: 2
+SUMMARY identical=13 different=0 (THREADS 2)

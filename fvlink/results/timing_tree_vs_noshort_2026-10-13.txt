@@ -1,0 +1,7 @@
+# Earlier session, 2026-10-13, on the build of that day (same FV code path; FVL-12 to FVL-14 change no .out)
+A: ../swmm5_stock ../models/tree_noshort_dw.inp t3.rpt t3.out
+   median 0.928 s  min 0.786 s  max 1.019 s  run-to-run spread 25.1% of median  (n=7, interleaved)
+B: ../swmm5_fv ../models/tree_fv.inp t2.rpt t2.out
+   median 1.223 s  min 1.199 s  max 1.323 s  run-to-run spread 10.1% of median
+B/A: 1.318× by medians; per-pair ratios 1.200–1.683 (median 1.326)
+Resolved: every interleaved pair agrees on the sign. Quote it as 1.32× with the 1.20–1.68 range attached.

@@ -1,0 +1,35 @@
+--- a/src/solver/fvlink.c
++++ b/src/solver/fvlink.c
+@@ -494,12 +494,14 @@
+ 
+ //=============================================================================
+ 
++void instDump(void);
+ void fvlink_close()
+ //
+ //  Purpose: frees the FV solver's run-time data.
+ //
+ {
+     int i;
++    if ( NFv > 0 ) instDump();
+     if ( Fv ) for (i = 0; i < NFv; i++) freeLink(&Fv[i]);
+     FREE(Fv);
+     FREE(FvIndex);
+@@ -728,6 +730,8 @@
+ 
+ //=============================================================================
+ 
++static double InstSub=0, InstPass[5]={0,0,0,0,0}, InstMinEx=1e30, InstExBelow=0;
++void instDump(void){ FILE* fp=fopen("fv_pass_count.log","a"); if(fp){ fprintf(fp,"%s sub %.0f p0 %.0f p1 %.0f p2 %.0f p3 %.0f exh %.0f minEx %.3g below %.0f\n", Finp.name, InstSub, InstPass[0],InstPass[1],InstPass[2],InstPass[3],InstPass[4],InstMinEx,InstExBelow); fclose(fp);} }
+ void solveSystem(double dt, double (*getArea)(int))
+ //
+ //  Purpose: subcycles every FV link from the start-of-step state to the end
+@@ -904,6 +908,8 @@
+             if ( floorHit || dtEnd >= dts * (1.0 - 1.0e-9) ) break;
+             dts = dtEnd;
+         }
++        InstSub += 1.0; InstPass[pass < 4 ? pass : 4] += 1.0;
++        if ( pass == 4 ) { FILE* g=fopen("fv_pass_ratio.log","a"); if(g){fprintf(g,"%.6f %.6f %.9f\n", dtStable, dts, dts/dtStable); fclose(g);} if ( dts < InstMinEx ) InstMinEx = dts; if ( dts < FV_MIN_DT && dts < remaining ) InstExBelow += 1.0; }
+         if ( dtStable < remaining )
+         {
+             for (i = 0; i < NFv; i++)
