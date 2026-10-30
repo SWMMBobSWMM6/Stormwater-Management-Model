@@ -469,7 +469,7 @@ enum  CompatibilityType {
       s_SYMBOL,       s_BACKDROP,     s_TAG,          s_PROFILE,
       s_MAP,          s_LID_CONTROL,  s_LID_USAGE,    s_GWF,
       s_ADJUST,       s_EVENT,        s_STREET,       s_INLET_USAGE,
-      s_INLET};
+      s_INLET,        s_FV_LINK};
 
  enum InputOptionType {
     FLOW_UNITS, INFIL_MODEL, ROUTE_MODEL,

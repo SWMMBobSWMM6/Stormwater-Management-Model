@@ -231,6 +231,26 @@ void    dynwave_init(void);
 void    dynwave_close(void);
 double  dynwave_getRoutingStep(double fixedStep);
 int     dynwave_execute(double tStep);
+
+//-----------------------------------------------------------------------------
+//   Finite-volume links inside Dynamic Wave routing  (fvlink.c)
+//-----------------------------------------------------------------------------
+int     fvlink_readParams(char* tok[], int ntoks);
+void    fvlink_validate(void);
+void    fvlink_delete(void);
+int     fvlink_init(void);
+void    fvlink_close(void);
+int     fvlink_active(void);
+int     fvlink_isFv(int link);
+int     fvlink_isFvNode(int node);
+double  fvlink_getNodeDqdh(int node);
+double  fvlink_getNodeVolume(int node, double oldNetInflow, double netInflow,
+        double dt);
+void    fvlink_initStep(void);
+void    fvlink_findFlows(double dt, int steps, double (*getArea)(int),
+        int (*isConverged)(int));
+void    fvlink_endStep(void);
+void    fvlink_report(void);
 void    dwflow_findConduitFlow(int j, int steps, double omega, double dt);
 
 void    qualrout_init(void);

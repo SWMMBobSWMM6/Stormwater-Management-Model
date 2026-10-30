@@ -100,6 +100,9 @@ void flowrout_init(int routingModel)
     // --- initialize node & link volumes
     initNodes();
     initLinks(routingModel);
+
+    // --- build any finite-volume links (must follow initLinks)
+    if ( routingModel == DW ) fvlink_init();
 }
 
 //=============================================================================
@@ -111,7 +114,11 @@ void  flowrout_close(int routingModel)
 //  Purpose: closes down routing method used.
 //
 {
-    if ( routingModel == DW ) dynwave_close();
+    if ( routingModel == DW )
+    {
+        dynwave_close();
+        fvlink_close();
+    }
 }
 
 //=============================================================================

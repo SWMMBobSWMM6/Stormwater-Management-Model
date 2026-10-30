@@ -112,6 +112,9 @@ static double getVariableStep(double maxStep);
 static double getLinkStep(double tMin, int *minLink);
 static double getNodeStep(double tMin, int *minNode);
 
+static double getFvNodeArea(int node);
+static int    isFvNodeConverged(int node);
+
 //=============================================================================
 
 void dynwave_init()
@@ -256,6 +259,9 @@ int dynwave_execute(double tStep)
     }
     if ( !converged ) updateConvergenceStats();
 
+    // --- commit finite-volume link results
+    if ( fvlink_active() ) fvlink_endStep();
+
     //  --- identify any capacity-limited conduits
     findLimitedLinks();
     return Steps;
@@ -290,6 +296,9 @@ void   initRoutingStep()
 
     // --- a2 preserves conduit area from solution at last time step
     for ( i = 0; i < Nlinks[CONDUIT]; i++) Conduit[i].a2 = Conduit[i].a1;
+
+    // --- save state of any finite-volume links
+    if ( fvlink_active() ) fvlink_initStep();
 }
 
 //=============================================================================
@@ -389,7 +398,7 @@ void findLinkFlows(double dt)
     #pragma omp for
     for ( i = 0; i < Nobjects[LINK]; i++)
     {
-        if ( isTrueConduit(i) && !Link[i].bypassed )
+        if ( isTrueConduit(i) && !Link[i].bypassed && !fvlink_isFv(i) )
             dwflow_findConduitFlow(i, Steps, Omega, dt);
     }
 }
@@ -397,7 +406,7 @@ void findLinkFlows(double dt)
     // --- update inflow/outflows for nodes attached to non-dummy conduits
     for ( i = 0; i < Nobjects[LINK]; i++)
     {
-        if ( isTrueConduit(i) ) updateNodeFlows(i);
+        if ( isTrueConduit(i) && !fvlink_isFv(i) ) updateNodeFlows(i);
     }
 
     // --- find new flows for all dummy conduits, pumps & regulators
@@ -409,6 +418,27 @@ void findLinkFlows(double dt)
             updateNodeFlows(i);
         }
     }
+
+    // --- solve any finite-volume links last, once every other link
+    //     has added its flow to the interface nodes
+    if ( fvlink_active() )
+    {
+        fvlink_findFlows(dt, Steps, getFvNodeArea, isFvNodeConverged);
+        for ( i = 0; i < Nobjects[NODE]; i++ )
+            Xnode[i].sumdqdh += fvlink_getNodeDqdh(i);
+    }
+}
+
+//=============================================================================
+
+double getFvNodeArea(int i)
+{
+    return MAX(Xnode[i].newSurfArea, MinSurfArea);
+}
+
+int isFvNodeConverged(int i)
+{
+    return Xnode[i].converged;
 }
 
 //=============================================================================
@@ -671,7 +701,10 @@ void setNodeDepth(int i, double dt)
     
     // --- determine average net flow volume into node over the time step
     dQ = Node[i].inflow - Node[i].outflow;
-    dV = 0.5 * (Node[i].oldNetInflow + dQ) * dt;
+    if ( fvlink_isFvNode(i) )
+        dV = fvlink_getNodeVolume(i, Node[i].oldNetInflow, dQ, dt);
+    else
+        dV = 0.5 * (Node[i].oldNetInflow + dQ) * dt;
 
     // --- determine if node is EXTRAN surcharged
     if (SurchargeMethod == EXTRAN)
@@ -850,7 +883,7 @@ double getLinkStep(double tMin, int *minLink)
     // --- examine each conduit link
     for ( i = 0; i < Nobjects[LINK]; i++ )
     {
-        if ( Link[i].type == CONDUIT )
+        if ( Link[i].type == CONDUIT && !fvlink_isFv(i) )
         {
             // --- skip conduits with negligible flow, area or Fr
             k = Link[i].subIndex;

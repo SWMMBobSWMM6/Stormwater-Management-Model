@@ -356,6 +356,7 @@ void  stats_report()
             report_writeMaxFlowTurns(MaxFlowTurns, MAX_STATS);
             report_writeNonconvergedStats(MaxNonConverged, MAX_STATS);
             report_writeTimeStepStats(&TimeStepStats);
+            fvlink_report();
         }
     }
 

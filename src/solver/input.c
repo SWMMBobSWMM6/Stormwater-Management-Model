@@ -628,6 +628,9 @@ int  parseLine(int sect, char *line)
       case s_INLET_USAGE:
         return inlet_readUsageParams(Tok, Ntokens);
 
+      case s_FV_LINK:
+        return fvlink_readParams(Tok, Ntokens);
+
       default: return 0;
     }
 }

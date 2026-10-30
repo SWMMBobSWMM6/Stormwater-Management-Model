@@ -1,0 +1,1403 @@
+//-----------------------------------------------------------------------------
+//   fvlink.c
+//
+//   Project:  EPA SWMM5 -- experimental branch swmm524-fvlink
+//   Version:  5.2.4 + [FV_LINKS]
+//   Date:     10/17/26
+//
+//   Per-link finite-volume routing inside a Dynamic Wave run.
+//
+//   Conduits listed in the [FV_LINKS] section are not solved by the
+//   node-link momentum equation in dwflow.c. Each one is cut into cells and
+//   marched with an explicit Godunov-type scheme:
+//     - conservative variables A and Q per barrel,
+//     - HLL flux with Davis signal speeds and dry-bed estimates,
+//     - hydrostatic reconstruction (Audusse et al. 2004) so a still water
+//       surface stays still over any bed,
+//     - a static Preissmann slot above the crown of closed shapes,
+//     - semi-implicit Manning friction,
+//     - a positivity limiter set by the donor side of each face.
+//
+//   The FV links are subcycled inside every Picard iteration of the dynamic
+//   wave step. Their end nodes are the interface: each end face sees a ghost
+//   state whose water surface is the node head and whose velocity is the
+//   adjacent cell's (head given, velocity extrapolated), and the
+//   time-integrated face fluxes are booked into the node's continuity
+//   equation exactly (except at a node surcharged under EXTRAN, whose head
+//   stock SWMM sets from the net flow rather than the volume). Every other
+//   link is untouched dynamic wave.
+//
+//   With no [FV_LINKS] section none of this code runs and results are
+//   identical to stock 5.2.4.
+//-----------------------------------------------------------------------------
+#define _CRT_SECURE_NO_DEPRECATE
+
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "headers.h"
+
+//-----------------------------------------------------------------------------
+//  Constants
+//-----------------------------------------------------------------------------
+#define FV_NTAB       256      // depth segments in each link's geometry table
+static const double FV_CFL        = 0.5;    // Courant number for substeps
+static const double FV_SLOT_C     = 100.0;  // slot celerity (ft/sec)
+static const double FV_SLOT_WFRAC = 0.05;   // slot width cap (fraction of wMax)
+static const double FV_DX_TARGET  = 25.0;   // default cell length (ft)
+static const int    FV_MIN_CELLS  = 4;      // default minimum cell count
+static const double FV_MIN_DT     = 0.001;  // substep floor (sec)
+static const int    FV_MAX_PASS   = 4;      // node-estimate passes per substep
+static const double FV_NODE_FACTOR = 1.0;  // node substep limit, x A/K
+static const double FV_MAX_VEL    = 50.0;   // velocity cap (ft/sec)
+static const double FV_AEPS       = 1.0e-8; // dry area, fraction of aFull
+
+enum FvNodeMode { FV_LOCAL, FV_PRESCRIBED };
+
+//-----------------------------------------------------------------------------
+//  Data Structures
+//-----------------------------------------------------------------------------
+typedef struct
+{
+    int     link;              // link index
+    int     conduit;           // conduit index
+    int     n1, n2;            // end node indexes
+    int     nCells;            // number of cells
+    int     closed;            // TRUE for a closed cross section
+    double  barrels;           // number of barrels
+    double  length;            // conduit length (ft)
+    double  dx;                // cell length (ft)
+    double  z1, z2;            // invert elevations at the two ends (ft)
+    double  rf;                // g*n^2/PHI^2 for Manning friction
+    double  yFull;             // full depth (ft)
+    double  dy;                // depth increment of geometry table (ft)
+    double  wTop;              // width above full depth (slot or walls) (ft)
+    double  aEps;              // dry area threshold (ft2)
+    double  tA[FV_NTAB+1];     // area at table depths (ft2)
+    double  tW[FV_NTAB];       // width of each table segment (ft)
+    double  tI[FV_NTAB+1];     // first moment I1 = integral of A dy (ft3)
+    double  tR[FV_NTAB+1];     // hydraulic radius at table depths (ft)
+    double* zc;                // cell bed elevations (ft)
+    double* a;                 // cell area per barrel (ft2)
+    double* q;                 // cell flow per barrel (cfs)
+    double* aSave;             // area at start of routing step
+    double* qSave;             // flow at start of routing step
+    double* fm;                // face mass flux (cfs)
+    double* fq;                // face momentum flux
+    double* cl;                // left-side hydrostatic correction
+    double* cr;                // right-side hydrostatic correction
+    double* lam;               // positivity factor of each cell
+    double  eSave[8];          // end-face fluxes before the node update
+    double  vIn;              // volume into upstream face, per barrel (ft3)
+    double  vOut;              // volume out of downstream face, per barrel (ft3)
+    double  dqdh;              // dQ/dH reported to the end nodes (ft2/sec)
+    double  kUp, kDn;          // face conductance at each end, per barrel
+    double  vInit;             // initial stored volume, all barrels (ft3)
+    double  volIn, volOut;     // cumulative accepted face volumes (ft3)
+    double  solves;            // number of subcycle solves
+    double  substeps;          // total substeps over all solves
+    double  maxSub;            // most substeps in one solve
+    double  minDt;             // smallest Courant-limited substep (sec)
+    double  floorHits;         // substeps forced up to the FV_MIN_DT floor
+    int     repaired;          // table depths where SWMM's area dipped
+} TFvLink;
+
+//-----------------------------------------------------------------------------
+//  Shared Variables
+//-----------------------------------------------------------------------------
+static int*     FvCells = NULL;    // per link: 0 = not FV, -1 = default, >0 cells
+static int      FvAlloc = 0;       // length of FvCells
+static TFvLink* Fv = NULL;         // FV link records
+static int      NFv = 0;           // number of FV links
+static int*     FvIndex = NULL;    // link index -> FV record (-1 if none)
+static char*    FvNode = NULL;     // TRUE if node is an FV interface node
+static int*     NodeList = NULL;   // list of interface nodes
+static int      NNodes = 0;        // number of interface nodes
+static double*  FvNetNew = NULL;   // FV net inflow to node this step (cfs)
+static double*  FvNetOld = NULL;   // FV net inflow to node last step (cfs)
+static double*  FvDqdh = NULL;     // summed dqdh of FV link ends (ft2/sec)
+static double*  NdV = NULL;        // FV volume into node within subcycle (ft3)
+static double*  NdH = NULL;        // node head at current substep (ft)
+static double*  NdH0 = NULL;       // node head at start of step (ft)
+static double*  NdH1 = NULL;       // node head of current iterate (ft)
+static double*  NdArea = NULL;     // node surface area (ft2)
+static double*  NdQe0 = NULL;      // non-FV net inflow, start of step (cfs)
+static double*  NdQe1 = NULL;      // non-FV net inflow, current iterate (cfs)
+static double*  NdYmax = NULL;     // max. non-flooded depth (ft)
+static double*  NdK = NULL;        // summed face conductance (ft2/sec)
+static double*  NdOut = NULL;      // FV outflow from node in a substep (cfs)
+static double*  NdLam = NULL;      // positivity factor for node
+static double*  NdNet = NULL;      // explicit FV inflow to node (cfs)
+static double*  NdDH = NULL;       // semi-implicit head change (ft)
+static char*    NdMode = NULL;     // FV_LOCAL or FV_PRESCRIBED
+static int      HaveResult = FALSE;// TRUE once a solve exists for this step
+static double   RouteSteps = 0.0;  // routing steps taken
+
+//-----------------------------------------------------------------------------
+//  Local functions
+//-----------------------------------------------------------------------------
+static int    buildLink(TFvLink* f, int j, int cells);
+static void   buildTable(TFvLink* f, TXsect* x);
+static void   freeLink(TFvLink* f);
+static double areaOf(const TFvLink* f, double h);
+static double widthOf(const TFvLink* f, double h);
+static double momentOf(const TFvLink* f, double h);
+static double depthOf(const TFvLink* f, double a);
+static double hradOf(const TFvLink* f, double h);
+static double velOf(const TFvLink* f, double a, double q);
+static void   hllFlux(const TFvLink* f, double hL, double aL, double uL,
+              double hR, double aR, double uR, double* fm, double* fq,
+              double* smax);
+static int    isExtranSurcharged(int n);
+static double nodeHead(int n, double t, double dt);
+static void   solveSystem(double dt, double (*getArea)(int));
+static void   setLinkResults(TFvLink* f, double dt);
+static double faceFlux(TFvLink* f, int m, double hd1, double hd2);
+static int    isGatedOutfall(int n);
+
+//=============================================================================
+//  Input
+//=============================================================================
+
+int fvlink_readParams(char* tok[], int ntoks)
+//
+//  Input:   tok[] = array of string tokens
+//           ntoks = number of tokens
+//  Output:  returns an error code
+//  Purpose: reads a line of the [FV_LINKS] section:
+//             LinkID  <Cells>
+//           Cells is optional (or *): default is enough cells for a 25 ft
+//           cell length, with at least 4.
+//
+{
+    int    j;
+    int    n = -1;
+    double x;
+
+    if ( ntoks < 1 ) return error_setInpError(ERR_ITEMS, "");
+    j = project_findObject(LINK, tok[0]);
+    if ( j < 0 ) return error_setInpError(ERR_NAME, tok[0]);
+    if ( ntoks >= 2 && strcmp(tok[1], "*") != 0 )
+    {
+        if ( !getDouble(tok[1], &x) || x < 1.0 || x > 100000.0 ||
+             x != floor(x) ) return error_setInpError(ERR_NUMBER, tok[1]);
+        n = (int)x;
+    }
+    if ( FvCells == NULL || FvAlloc != Nobjects[LINK] )
+    {
+        FREE(FvCells);
+        FvCells = (int *) calloc(Nobjects[LINK], sizeof(int));
+        if ( FvCells == NULL ) return ERR_MEMORY;
+        FvAlloc = Nobjects[LINK];
+    }
+    FvCells[j] = n;
+    return 0;
+}
+
+//=============================================================================
+
+void fvlink_validate()
+//
+//  Purpose: checks that each FV link is a conduit the FV solver supports,
+//           and that no pump or dummy conduit draws from one of its end
+//           nodes (those links take their flow from the node's inflow,
+//           which dynamic wave totals before the FV links are solved).
+//
+{
+    int j, i, n;
+    if ( FvCells == NULL ) return;
+    for (j = 0; j < Nobjects[LINK]; j++)
+    {
+        if ( FvCells[j] == 0 ) continue;
+        for (i = 0; i < Nobjects[LINK]; i++)
+        {
+            if ( Link[i].type != PUMP &&
+                 !(Link[i].type == CONDUIT && Link[i].xsect.type == DUMMY) )
+                continue;
+            n = Link[i].node1;
+            if ( n == Link[j].node1 || n == Link[j].node2 )
+            {
+                report_writeErrorMsg(ERR_FV_LINK, Link[j].ID);
+                break;
+            }
+        }
+        if ( RouteModel != DW ||
+             Link[j].type != CONDUIT ||
+             Link[j].xsect.type == DUMMY ||
+             Link[j].xsect.type == FORCE_MAIN ||
+             Link[j].xsect.culvertCode > 0 ||
+             Link[j].hasFlapGate ||
+             Link[j].seepRate > 0.0 ||
+             Link[j].qLimit > 0.0 ||
+             Link[j].inlet != NULL ||
+             Link[j].cLossInlet != 0.0 ||
+             Link[j].cLossOutlet != 0.0 ||
+             Link[j].cLossAvg != 0.0 )
+        {
+            report_writeErrorMsg(ERR_FV_LINK, Link[j].ID);
+        }
+    }
+}
+
+//=============================================================================
+
+void fvlink_delete()
+//
+//  Purpose: frees the [FV_LINKS] input data when a project closes.
+//
+{
+    FREE(FvCells);
+    FvAlloc = 0;
+}
+
+//=============================================================================
+//  Start-up and shut-down
+//=============================================================================
+
+int fvlink_init()
+//
+//  Output:  returns an error code
+//  Purpose: builds the mesh and initial state of every FV link. Called at
+//           the end of flowrout_init(), after link depths and volumes have
+//           been initialized for dynamic wave routing.
+//
+{
+    int i, j, n, count = 0;
+
+    fvlink_close();
+    RouteSteps = 0.0;
+    if ( FvCells == NULL || FvAlloc != Nobjects[LINK] ) return 0;
+    for (j = 0; j < Nobjects[LINK]; j++) if ( FvCells[j] != 0 ) count++;
+    if ( count == 0 ) return 0;
+
+    // --- allocate link and node arrays
+    Fv = (TFvLink *) calloc(count, sizeof(TFvLink));
+    FvIndex = (int *) malloc(Nobjects[LINK] * sizeof(int));
+    FvNode = (char *) calloc(Nobjects[NODE], sizeof(char));
+    NodeList = (int *) calloc(Nobjects[NODE], sizeof(int));
+    FvNetNew = (double *) calloc(Nobjects[NODE], sizeof(double));
+    FvNetOld = (double *) calloc(Nobjects[NODE], sizeof(double));
+    FvDqdh   = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdV      = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdH      = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdH0     = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdH1     = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdArea   = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdQe0    = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdQe1    = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdYmax   = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdK      = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdOut    = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdLam    = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdMode   = (char *) calloc(Nobjects[NODE], sizeof(char));
+    NdNet    = (double *) calloc(Nobjects[NODE], sizeof(double));
+    NdDH     = (double *) calloc(Nobjects[NODE], sizeof(double));
+    if ( !Fv || !FvIndex || !FvNode || !NodeList || !FvNetNew ||
+         !FvNetOld || !FvDqdh || !NdV || !NdH || !NdH0 || !NdH1 ||
+         !NdArea || !NdQe0 || !NdQe1 || !NdYmax || !NdK || !NdOut ||
+         !NdLam || !NdMode || !NdNet || !NdDH )
+    {
+        report_writeErrorMsg(ERR_MEMORY, " Not enough memory for FV links.");
+        return ErrorCode;
+    }
+
+    // --- build each FV link
+    for (j = 0; j < Nobjects[LINK]; j++) FvIndex[j] = -1;
+    for (j = 0; j < Nobjects[LINK]; j++)
+    {
+        if ( FvCells[j] == 0 ) continue;
+        if ( !buildLink(&Fv[NFv], j, FvCells[j]) )
+        {
+            freeLink(&Fv[NFv]);
+            report_writeErrorMsg(ERR_MEMORY, " Not enough memory for FV links.");
+            return ErrorCode;
+        }
+        FvIndex[j] = NFv;
+        NFv++;
+    }
+
+    // --- list the interface nodes and record the FV share of each node's
+    //     initial net inflow (it is part of oldNetInflow at the first step)
+    for (i = 0; i < NFv; i++)
+    {
+        n = Fv[i].n1;
+        if ( !FvNode[n] ) { FvNode[n] = TRUE; NodeList[NNodes++] = n; }
+        n = Fv[i].n2;
+        if ( !FvNode[n] ) { FvNode[n] = TRUE; NodeList[NNodes++] = n; }
+        FvNetOld[Fv[i].n1] -= Link[Fv[i].link].newFlow;
+        FvNetOld[Fv[i].n2] += Link[Fv[i].link].newFlow;
+    }
+    HaveResult = FALSE;
+    return 0;
+}
+
+//=============================================================================
+
+int buildLink(TFvLink* f, int j, int cells)
+//
+//  Purpose: builds the geometry table, mesh and initial state of an FV link.
+//
+{
+    int     i, n;
+    double  h, e1, e2, eta, h1, h2, nRough;
+    TXsect* x = &Link[j].xsect;
+
+    f->link = j;
+    f->conduit = Link[j].subIndex;
+    f->n1 = Link[j].node1;
+    f->n2 = Link[j].node2;
+    f->barrels = Conduit[f->conduit].barrels;
+    f->length = link_getLength(j);
+
+    // --- an FV link keeps its true length; dynamic wave's lengthening
+    //     (LENGTHENING_STEP) only eases a Courant step FV links take no
+    //     part in, so undo it for the report's Adjusted/Actual Length
+    Conduit[f->conduit].modLength = Conduit[f->conduit].length;
+    if ( cells < 0 )
+    {
+        cells = (int)ceil(f->length / FV_DX_TARGET);
+        if ( cells < FV_MIN_CELLS ) cells = FV_MIN_CELLS;
+    }
+    f->nCells = cells;
+    f->dx = f->length / cells;
+    f->z1 = Node[f->n1].invertElev + Link[j].offset1;
+    f->z2 = Node[f->n2].invertElev + Link[j].offset2;
+    f->closed = !xsect_isOpen(x->type);
+
+    // --- Manning friction factor (same raw n the conduit was given)
+    nRough = Conduit[f->conduit].roughness;
+    if ( x->type == IRREGULAR )
+        nRough *= sqrt(Transect[x->transect].lengthFactor);
+    f->rf = GRAVITY * SQR(nRough / PHI);
+
+    // --- geometry closure
+    buildTable(f, x);
+
+    // --- allocate cell and face arrays
+    n = f->nCells;
+    f->zc    = (double *) calloc(n, sizeof(double));
+    f->a     = (double *) calloc(n, sizeof(double));
+    f->q     = (double *) calloc(n, sizeof(double));
+    f->aSave = (double *) calloc(n, sizeof(double));
+    f->qSave = (double *) calloc(n, sizeof(double));
+    f->fm    = (double *) calloc(n+1, sizeof(double));
+    f->fq    = (double *) calloc(n+1, sizeof(double));
+    f->cl    = (double *) calloc(n+1, sizeof(double));
+    f->cr    = (double *) calloc(n+1, sizeof(double));
+    f->lam   = (double *) calloc(n, sizeof(double));
+    if ( !f->zc || !f->a || !f->q || !f->aSave || !f->qSave || !f->fm ||
+         !f->fq || !f->cl || !f->cr || !f->lam ) return FALSE;
+
+    // --- cell beds (piecewise constant at cell centroids)
+    for (i = 0; i < n; i++)
+        f->zc[i] = f->z1 + (f->z2 - f->z1) * (i + 0.5) / n;
+
+    // --- initial state: a hot start or a user-assigned initial flow gives
+    //     a uniform depth and flow; otherwise the water surface is
+    //     interpolated between the end node heads (a still pond stays still)
+    if ( Fhotstart1.mode != NO_FILE || Link[j].q0 != 0.0 )
+    {
+        h = Link[j].newDepth;
+        for (i = 0; i < n; i++)
+        {
+            f->a[i] = areaOf(f, h);
+            f->q[i] = Link[j].newFlow / f->barrels;
+        }
+    }
+    else
+    {
+        h1 = Node[f->n1].invertElev + Node[f->n1].newDepth;
+        h2 = Node[f->n2].invertElev + Node[f->n2].newDepth;
+        e1 = MAX(h1, f->z1);
+        e2 = MAX(h2, f->z2);
+        for (i = 0; i < n; i++)
+        {
+            eta = e1 + (e2 - e1) * (i + 0.5) / n;
+            f->a[i] = areaOf(f, MAX(0.0, eta - f->zc[i]));
+            f->q[i] = 0.0;
+        }
+    }
+    f->minDt = 1.0e10;
+
+    // --- publish the initial state; the initial flow is the one dynamic
+    //     wave already booked into the end nodes (see fvlink_init)
+    f->vIn = Link[j].newFlow / f->barrels;
+    f->vOut = f->vIn;
+    setLinkResults(f, 1.0);
+    f->vIn = 0.0;
+    f->vOut = 0.0;
+    f->vInit = Link[j].newVolume;
+    Link[j].oldVolume = Link[j].newVolume;
+    Link[j].oldFlow = Link[j].newFlow;
+    Link[j].oldDepth = Link[j].newDepth;
+    return TRUE;
+}
+
+//=============================================================================
+
+void buildTable(TFvLink* f, TXsect* x)
+//
+//  Purpose: builds an FV link's geometry closure from SWMM's own section
+//           functions (also called directly by the closure test).
+//
+{
+    int     i, k, n;
+    double  y, a, eps;
+
+    // --- geometry table: area is piecewise linear in depth, so width is
+    //     exactly dA/dy, I1 is exactly the integral of A, and depth from
+    //     area is an exact inverse
+    f->yFull = x->yFull;
+    f->dy = x->yFull / FV_NTAB;
+    f->tA[0] = 0.0;
+    f->tI[0] = 0.0;
+    f->tR[0] = 0.0;
+    for (i = 1; i <= FV_NTAB; i++)
+    {
+        y = (i == FV_NTAB) ? x->yFull : i * f->dy;
+        f->tA[i] = xsect_getAofY(x, y);
+        f->tR[i] = xsect_getRofY(x, y);
+    }
+
+    // --- SWMM's area is not always monotone in depth: lookup() applies a
+    //     quadratic correction in the first two table intervals, and for a
+    //     transect that widens sharply near its invert the area can fall
+    //     as depth rises. Keep SWMM's value at every depth where the area
+    //     sets a new maximum and bridge the dips between those depths
+    //     linearly, so every width is positive.
+    a = 0.0;
+    k = 0;
+    eps = 1.0e-9 * MAX(x->aFull, f->tA[FV_NTAB]);
+    if ( f->tA[FV_NTAB] <= 0.0 ) f->tA[FV_NTAB] = x->aFull;
+    for (i = 1; i <= FV_NTAB; i++)
+    {
+        if ( f->tA[i] > a + eps || i == FV_NTAB )
+        {
+            if ( f->tA[i] <= a + eps ) f->tA[i] = a + eps;
+            for (n = k + 1; n < i; n++)
+                f->tA[n] = f->tA[k] + (f->tA[i] - f->tA[k]) * (n - k) / (i - k);
+            if ( i - k > 1 ) f->repaired += i - k - 1;
+            a = f->tA[i];
+            k = i;
+        }
+    }
+    for (i = 0; i < FV_NTAB; i++)
+    {
+        f->tW[i] = (f->tA[i+1] - f->tA[i]) / f->dy;
+        f->tI[i+1] = f->tI[i] + 0.5 * (f->tA[i] + f->tA[i+1]) * f->dy;
+    }
+    if ( f->closed )
+    {
+        f->wTop = GRAVITY * f->tA[FV_NTAB] / (FV_SLOT_C * FV_SLOT_C);
+        if ( f->wTop > FV_SLOT_WFRAC * x->wMax )
+            f->wTop = FV_SLOT_WFRAC * x->wMax;
+    }
+    else
+    {
+        f->wTop = xsect_getWofY(x, x->yFull);
+        if ( f->wTop <= 0.0 ) f->wTop = f->tW[FV_NTAB-1];
+    }
+    f->aEps = FV_AEPS * f->tA[FV_NTAB];
+}
+
+//=============================================================================
+
+void fvlink_close()
+//
+//  Purpose: frees the FV solver's run-time data.
+//
+{
+    int i;
+    if ( Fv ) for (i = 0; i < NFv; i++) freeLink(&Fv[i]);
+    FREE(Fv);
+    FREE(FvIndex);
+    FREE(FvNode);
+    FREE(NodeList);
+    FREE(FvNetNew);
+    FREE(FvNetOld);
+    FREE(FvDqdh);
+    FREE(NdV);
+    FREE(NdH);
+    FREE(NdH0);
+    FREE(NdH1);
+    FREE(NdArea);
+    FREE(NdQe0);
+    FREE(NdQe1);
+    FREE(NdYmax);
+    FREE(NdK);
+    FREE(NdOut);
+    FREE(NdLam);
+    FREE(NdMode);
+    FREE(NdNet);
+    FREE(NdDH);
+    NFv = 0;
+    NNodes = 0;
+}
+
+void freeLink(TFvLink* f)
+{
+    FREE(f->zc);
+    FREE(f->a);
+    FREE(f->q);
+    FREE(f->aSave);
+    FREE(f->qSave);
+    FREE(f->fm);
+    FREE(f->fq);
+    FREE(f->cl);
+    FREE(f->cr);
+    FREE(f->lam);
+}
+
+//=============================================================================
+//  Queries used by dynwave.c
+//=============================================================================
+
+int fvlink_active()
+{
+    return (NFv > 0);
+}
+
+int fvlink_isFv(int j)
+{
+    return (FvIndex != NULL && FvIndex[j] >= 0);
+}
+
+int fvlink_isFvNode(int n)
+{
+    return (FvNode != NULL && FvNode[n]);
+}
+
+double fvlink_getNodeDqdh(int n)
+{
+    if ( FvNode == NULL || !FvNode[n] ) return 0.0;
+    return FvDqdh[n];
+}
+
+double fvlink_getNodeVolume(int n, double oldNetInflow, double netInflow,
+                            double dt)
+//
+//  Input:   n = node index
+//           oldNetInflow = node net inflow at end of last step (cfs)
+//           netInflow = node net inflow of current iterate (cfs)
+//           dt = time step (sec)
+//  Output:  returns change in node volume over the step (ft3)
+//  Purpose: books the FV face volumes into node continuity exactly, while
+//           the rest of the node's flows keep dynamic wave's trapezoidal rule.
+//
+{
+    double fvNew = FvNetNew[n];
+    double fvOld = FvNetOld[n];
+    return 0.5 * ((oldNetInflow - fvOld) + (netInflow - fvNew)) * dt +
+           fvNew * dt;
+}
+
+//=============================================================================
+//  Routing step
+//=============================================================================
+
+void fvlink_initStep()
+//
+//  Purpose: saves the FV state at the start of a dynamic wave step; every
+//           Picard iteration restarts from it.
+//
+{
+    int i, c;
+    for (i = 0; i < NFv; i++)
+    {
+        for (c = 0; c < Fv[i].nCells; c++)
+        {
+            Fv[i].aSave[c] = Fv[i].a[c];
+            Fv[i].qSave[c] = Fv[i].q[c];
+        }
+    }
+    HaveResult = FALSE;
+}
+
+//=============================================================================
+
+void fvlink_findFlows(double dt, int steps, double (*getArea)(int),
+                      int (*isConverged)(int))
+//
+//  Input:   dt = dynamic wave time step (sec)
+//           steps = Picard iterations already taken this step
+//           getArea = returns a node's surface area for this iterate (ft2)
+//           isConverged = returns TRUE if a node converged last iteration
+//  Purpose: solves all FV links over the step and adds their face flows to
+//           the inflow and outflow of their end nodes. Must be called after
+//           every other link has added its flow to the nodes.
+//
+{
+    int    i, n, need = TRUE;
+    double qin, qout;
+    TFvLink* f;
+
+    // --- re-solve unless every interface node already converged
+    if ( steps >= 2 && HaveResult )
+    {
+        need = FALSE;
+        for (i = 0; i < NNodes; i++)
+        {
+            if ( !isConverged(NodeList[i]) ) { need = TRUE; break; }
+        }
+    }
+    if ( need )
+    {
+        solveSystem(dt, getArea);
+        HaveResult = TRUE;
+    }
+
+    // --- add time-averaged face flows to the end nodes
+    for (i = 0; i < NNodes; i++)
+    {
+        n = NodeList[i];
+        FvNetNew[n] = 0.0;
+        FvDqdh[n] = 0.0;
+    }
+    for (i = 0; i < NFv; i++)
+    {
+        f = &Fv[i];
+        qin  = f->vIn  / dt * f->barrels;
+        qout = f->vOut / dt * f->barrels;
+        FvNetNew[f->n1] -= qin;
+        FvNetNew[f->n2] += qout;
+        if ( qin >= 0.0 ) Node[f->n1].outflow += qin;
+        else              Node[f->n1].inflow  -= qin;
+        if ( qout >= 0.0 ) Node[f->n2].inflow  += qout;
+        else               Node[f->n2].outflow -= qout;
+        FvDqdh[f->n1] += f->dqdh;
+        FvDqdh[f->n2] += f->dqdh;
+    }
+}
+
+//=============================================================================
+
+void fvlink_endStep()
+//
+//  Purpose: commits the accepted solution at the end of a routing step.
+//
+{
+    int i, n;
+    for (i = 0; i < NNodes; i++)
+    {
+        n = NodeList[i];
+        FvNetOld[n] = FvNetNew[n];
+    }
+    for (i = 0; i < NFv; i++)
+    {
+        Fv[i].volIn  += Fv[i].vIn  * Fv[i].barrels;
+        Fv[i].volOut += Fv[i].vOut * Fv[i].barrels;
+    }
+    RouteSteps += 1.0;
+}
+
+//=============================================================================
+
+int isExtranSurcharged(int n)
+//
+//  Purpose: same test as setNodeDepth() in dynwave.c.
+//
+{
+    int    canPond = (AllowPonding && Node[n].pondedArea > 0.0);
+    int    isPonded = (canPond && Node[n].newDepth > Node[n].fullDepth);
+    double yCrown = Node[n].crownElev - Node[n].invertElev;
+    double yLast = Node[n].newDepth;
+
+    if ( SurchargeMethod != EXTRAN || isPonded ) return FALSE;
+    if ( Node[n].type == STORAGE )
+        return (Node[n].surDepth > 0.0 && yLast > Node[n].fullDepth);
+    return (yCrown > 0.0 && yLast > yCrown);
+}
+
+//=============================================================================
+
+double nodeHead(int n, double t, double dt)
+//
+//  Input:   n = interface node index
+//           t = time into the step (sec)
+//           dt = step length (sec)
+//  Output:  returns the node head at time t (ft)
+//  Purpose: LOCAL nodes integrate their own continuity inside the subcycle:
+//           the non-FV net inflow varies linearly from its start-of-step
+//           value to the current iterate (the same volume dynamic wave's
+//           trapezoidal rule books) and the FV face volumes are added as
+//           they happen. PRESCRIBED nodes (outfalls, EXTRAN-surcharged
+//           nodes) follow dynamic wave's current iterate linearly in time.
+//
+{
+    double v, y;
+    if ( NdMode[n] == FV_PRESCRIBED )
+        return NdH0[n] + (NdH1[n] - NdH0[n]) * t / dt;
+    v = NdQe0[n] * t + 0.5 * (NdQe1[n] - NdQe0[n]) * t * t / dt + NdV[n];
+    y = Node[n].oldDepth + v / NdArea[n];
+    if ( y < 0.0 ) y = 0.0;
+    if ( y > NdYmax[n] ) y = NdYmax[n];
+    return Node[n].invertElev + y;
+}
+
+//=============================================================================
+
+void solveSystem(double dt, double (*getArea)(int))
+//
+//  Purpose: subcycles every FV link from the start-of-step state to the end
+//           of the dynamic wave step.
+//
+{
+    int     i, c, m, n, nc, count, pass, floorHit = FALSE;
+    double  t, dts, remaining, smax, s, h, out, vol, lam, avail, qe, dtEnd;
+    double  dtStable = 0.0;
+    double  anew, qnew, r, area;
+    TFvLink* f;
+
+    // --- restore start-of-step state
+    for (i = 0; i < NFv; i++)
+    {
+        f = &Fv[i];
+        for (c = 0; c < f->nCells; c++)
+        {
+            f->a[c] = f->aSave[c];
+            f->q[c] = f->qSave[c];
+        }
+        f->vIn = 0.0;
+        f->vOut = 0.0;
+    }
+
+    // --- set up interface nodes for this iterate
+    for (i = 0; i < NNodes; i++)
+    {
+        n = NodeList[i];
+        NdMode[n] = FV_LOCAL;
+        if ( Node[n].type == OUTFALL || isExtranSurcharged(n) )
+            NdMode[n] = FV_PRESCRIBED;
+        NdH0[n] = Node[n].invertElev + Node[n].oldDepth;
+        NdH1[n] = Node[n].invertElev + Node[n].newDepth;
+        NdArea[n] = getArea(n);
+        NdQe0[n] = Node[n].oldNetInflow - FvNetOld[n];
+        NdQe1[n] = Node[n].inflow - Node[n].outflow;
+        NdV[n] = 0.0;
+        if ( AllowPonding && Node[n].pondedArea > 0.0 ) NdYmax[n] = BIG;
+        else NdYmax[n] = Node[n].fullDepth + Node[n].surDepth;
+    }
+
+    t = 0.0;
+    count = 0;
+    while ( t < dt )
+    {
+        remaining = dt - t;
+        if ( remaining <= 1.0e-12 * dt ) break;
+
+        // --- node heads at the start of the substep
+        for (i = 0; i < NNodes; i++)
+        {
+            n = NodeList[i];
+            NdH[n] = nodeHead(n, t, dt);
+            NdK[n] = 0.0;
+            NdOut[n] = 0.0;
+            NdLam[n] = 1.0;
+        }
+
+        // --- face fluxes of every FV link; collect the stable substep
+        dts = remaining;
+        for (i = 0; i < NFv; i++)
+        {
+            f = &Fv[i];
+            nc = f->nCells;
+            smax = 0.0;
+            for (m = 0; m <= nc; m++)
+            {
+                s = faceFlux(f, m, NdH[f->n1], NdH[f->n2]);
+                if ( s > smax ) smax = s;
+            }
+
+            // --- Courant limit for the cells
+            if ( smax > 0.0 )
+            {
+                s = FV_CFL * f->dx / smax;
+                if ( s < dts ) dts = s;
+            }
+
+            // --- conductance of each end face, |dQ/dH| = sqrt(g*A*T)
+            //     for a simple wave, at the deeper of ghost and end cell
+            f->kUp = 0.0;
+            f->kDn = 0.0;
+            if ( Link[f->link].setting != 0.0 )
+            {
+                h = MAX(depthOf(f, f->a[0]), MAX(0.0, NdH[f->n1] - f->z1));
+                area = areaOf(f, h);
+                if ( area > f->aEps )
+                    f->kUp = sqrt(GRAVITY * area * widthOf(f, h));
+                h = MAX(depthOf(f, f->a[nc-1]),
+                        MAX(0.0, NdH[f->n2] - f->z2));
+                area = areaOf(f, h);
+                if ( area > f->aEps )
+                    f->kDn = sqrt(GRAVITY * area * widthOf(f, h));
+            }
+            NdK[f->n1] += f->barrels * f->kUp;
+            NdK[f->n2] += f->barrels * f->kDn;
+        }
+
+        // --- explicit coupling limit for nodes that integrate locally
+        for (i = 0; i < NNodes; i++)
+        {
+            n = NodeList[i];
+            if ( NdMode[n] != FV_LOCAL || NdK[n] <= 0.0 ) continue;
+            s = FV_NODE_FACTOR * NdArea[n] / NdK[n];
+            if ( s < dts ) dts = s;
+        }
+        // --- semi-implicit node coupling: estimate each local node's head
+        //     at the end of the substep with the end faces' response to it
+        //     (backward Euler in the node), then re-solve the end faces
+        //     against that head. Node and cells both read the same final
+        //     face fluxes, so mass stays exact, and the manhole-pipe mode
+        //     is damped rather than pumped.
+        for (i = 0; i < NNodes; i++) NdNet[NodeList[i]] = 0.0;
+        for (i = 0; i < NFv; i++)
+        {
+            f = &Fv[i];
+            NdNet[f->n1] -= f->fm[0] * f->barrels;
+            NdNet[f->n2] += f->fm[f->nCells] * f->barrels;
+            f->eSave[0] = f->fm[0];
+            f->eSave[1] = f->fq[0];
+            f->eSave[2] = f->cl[0];
+            f->eSave[3] = f->cr[0];
+            f->eSave[4] = f->fm[f->nCells];
+            f->eSave[5] = f->fq[f->nCells];
+            f->eSave[6] = f->cl[f->nCells];
+            f->eSave[7] = f->cr[f->nCells];
+        }
+
+        // --- the re-solved end faces can carry faster waves than the ones
+        //     the substep was sized on; if so, shrink the substep and redo
+        //     the node estimate (a few passes at most)
+        for (pass = 0; pass < FV_MAX_PASS; pass++)
+        {
+            floorHit = FALSE;
+            dtStable = dts;
+            if ( dts < FV_MIN_DT && dts < remaining )
+            {
+                dts = MIN(FV_MIN_DT, remaining);
+                floorHit = TRUE;
+            }
+            for (i = 0; i < NNodes; i++)
+            {
+                n = NodeList[i];
+                NdDH[n] = 0.0;
+                if ( NdMode[n] != FV_LOCAL || NdK[n] <= 0.0 ) continue;
+                qe = NdQe0[n] + (NdQe1[n] - NdQe0[n]) * (t + 0.5 * dts) / dt;
+                NdDH[n] = dts * (qe + NdNet[n]) / (NdArea[n] + dts * NdK[n]);
+                h = NdH[n] + NdDH[n] - Node[n].invertElev;
+                if ( h < 0.0 ) NdDH[n] = Node[n].invertElev - NdH[n];
+                if ( h > NdYmax[n] )
+                    NdDH[n] = Node[n].invertElev + NdYmax[n] - NdH[n];
+            }
+            dtEnd = dts;
+            for (i = 0; i < NFv; i++)
+            {
+                f = &Fv[i];
+                nc = f->nCells;
+                f->fm[0] = f->eSave[0]; f->fq[0] = f->eSave[1];
+                f->cl[0] = f->eSave[2]; f->cr[0] = f->eSave[3];
+                f->fm[nc] = f->eSave[4]; f->fq[nc] = f->eSave[5];
+                f->cl[nc] = f->eSave[6]; f->cr[nc] = f->eSave[7];
+                if ( NdDH[f->n1] != 0.0 )
+                {
+                    s = faceFlux(f, 0, NdH[f->n1] + NdDH[f->n1], NdH[f->n2]);
+                    if ( s > 0.0 ) dtEnd = MIN(dtEnd, FV_CFL * f->dx / s);
+                }
+                if ( NdDH[f->n2] != 0.0 )
+                {
+                    s = faceFlux(f, nc, NdH[f->n1], NdH[f->n2] + NdDH[f->n2]);
+                    if ( s > 0.0 ) dtEnd = MIN(dtEnd, FV_CFL * f->dx / s);
+                }
+            }
+            if ( floorHit || dtEnd >= dts * (1.0 - 1.0e-9) ) break;
+            dts = dtEnd;
+        }
+
+        // --- when the passes run out, the last one has shortened the
+        //     substep once more without a new node estimate; record that
+        //     substep and hold it to the floor like any other
+        if ( pass == FV_MAX_PASS )
+        {
+            dtStable = dts;
+            if ( dts < FV_MIN_DT && dts < remaining )
+            {
+                dts = MIN(FV_MIN_DT, remaining);
+                floorHit = TRUE;
+            }
+        }
+        if ( dtStable < remaining )
+        {
+            for (i = 0; i < NFv; i++)
+            {
+                if ( dtStable < Fv[i].minDt ) Fv[i].minDt = dtStable;
+                if ( floorHit ) Fv[i].floorHits += 1.0;
+            }
+        }
+
+        // --- positivity: FV outflow drawn from each local node
+        for (i = 0; i < NFv; i++)
+        {
+            f = &Fv[i];
+            if ( f->fm[0] > 0.0 ) NdOut[f->n1] += f->fm[0] * f->barrels;
+            if ( f->fm[f->nCells] < 0.0 )
+                NdOut[f->n2] -= f->fm[f->nCells] * f->barrels;
+        }
+        for (i = 0; i < NNodes; i++)
+        {
+            n = NodeList[i];
+            if ( NdMode[n] != FV_LOCAL || NdOut[n] <= 0.0 ) continue;
+            qe = NdQe0[n] + (NdQe1[n] - NdQe0[n]) * (t + 0.5 * dts) / dt;
+            avail = (NdH[n] - Node[n].invertElev) * NdArea[n] + qe * dts;
+            out = NdOut[n] * dts;
+            if ( out > avail ) NdLam[n] = MAX(0.0, avail) / out;
+        }
+
+        // --- positivity in the cells, then update every FV link
+        for (i = 0; i < NFv; i++)
+        {
+            f = &Fv[i];
+            nc = f->nCells;
+
+            // --- each cell's factor, from the unscaled fluxes, so a cell
+            //     that donates through both faces is limited once
+            for (c = 0; c < nc; c++)
+            {
+                out = (f->fm[c+1] > 0.0 ? f->fm[c+1] : 0.0) +
+                      (f->fm[c]   < 0.0 ? -f->fm[c]  : 0.0);
+                vol = f->a[c] * f->dx;
+                f->lam[c] = (out * dts > vol) ? vol / (out * dts) : 1.0;
+            }
+
+            // --- scale each face flux by the factor of its donor side
+            for (m = 0; m <= nc; m++)
+            {
+                if ( f->fm[m] > 0.0 )
+                    lam = (m == 0) ? NdLam[f->n1] : f->lam[m-1];
+                else if ( f->fm[m] < 0.0 )
+                    lam = (m == nc) ? NdLam[f->n2] : f->lam[m];
+                else lam = 1.0;
+                if ( lam < 1.0 )
+                {
+                    f->fm[m] *= lam;
+                    f->fq[m] *= lam;
+                }
+            }
+
+            // --- conservative update + semi-implicit friction
+            for (c = 0; c < nc; c++)
+            {
+                anew = f->a[c] - dts / f->dx * (f->fm[c+1] - f->fm[c]);
+                qnew = f->q[c] - dts / f->dx *
+                       ((f->fq[c+1] + f->cl[c+1]) - (f->fq[c] + f->cr[c]));
+                if ( anew < 0.0 ) anew = 0.0;
+                if ( anew > f->aEps )
+                {
+                    // --- friction acts on the real section: slot area is
+                    //     storage for wave celerity, not conveyance
+                    h = depthOf(f, anew);
+                    r = hradOf(f, h);
+                    area = anew;
+                    if ( f->closed && area > f->tA[FV_NTAB] )
+                        area = f->tA[FV_NTAB];
+                    if ( r > 0.0 )
+                        qnew /= 1.0 + dts * f->rf * fabs(qnew) /
+                                (area * pow(r, 4.0/3.0));
+                    if ( fabs(qnew) > anew * FV_MAX_VEL )
+                        qnew = SGN(qnew) * anew * FV_MAX_VEL;
+                }
+                else qnew = 0.0;
+                f->a[c] = anew;
+                f->q[c] = qnew;
+            }
+            f->vIn  += f->fm[0] * dts;
+            f->vOut += f->fm[nc] * dts;
+            NdV[f->n1] -= f->fm[0] * f->barrels * dts;
+            NdV[f->n2] += f->fm[nc] * f->barrels * dts;
+        }
+        t += dts;
+        count++;
+    }
+
+    // --- statistics and link results
+    for (i = 0; i < NFv; i++)
+    {
+        f = &Fv[i];
+        f->solves += 1.0;
+        f->substeps += count;
+        if ( count > f->maxSub ) f->maxSub = count;
+        setLinkResults(f, dt);
+    }
+}
+
+//=============================================================================
+
+int isGatedOutfall(int n)
+{
+    return ( Node[n].type == OUTFALL && Outfall[Node[n].subIndex].hasFlapGate );
+}
+
+//=============================================================================
+
+double faceFlux(TFvLink* f, int m, double hd1, double hd2)
+//
+//  Input:   f = FV link
+//           m = face index (0 = upstream end, nCells = downstream end)
+//           hd1, hd2 = heads at the link's upstream and downstream nodes (ft)
+//  Output:  returns the largest signal speed at the face (ft/sec)
+//  Purpose: computes the HLL flux and the hydrostatic corrections at a face.
+//           An end face sees a ghost whose surface is the node head and
+//           whose velocity is the adjacent cell's.
+//
+{
+    int    nc = f->nCells;
+    double zL, zR, zs, hL, hR, hLs, hRs, etaL, etaR, uL, uR, aL, aR, s;
+
+    // --- a closed conduit (control setting 0) has walls at its ends
+    if ( (m == 0 || m == nc) && Link[f->link].setting == 0.0 )
+    {
+        f->fm[m] = 0.0;
+        if ( m == 0 )
+        {
+            f->fq[0] = GRAVITY * momentOf(f, depthOf(f, f->a[0]));
+            f->cr[0] = 0.0;
+            f->cl[0] = 0.0;
+        }
+        else
+        {
+            f->fq[nc] = GRAVITY * momentOf(f, depthOf(f, f->a[nc-1]));
+            f->cl[nc] = 0.0;
+            f->cr[nc] = 0.0;
+        }
+        return 0.0;
+    }
+
+    // --- left state
+    if ( m == 0 )
+    {
+        zL = f->z1;
+        etaL = hd1;
+        hL = MAX(0.0, etaL - zL);
+        uL = velOf(f, f->a[0], f->q[0]);
+    }
+    else
+    {
+        zL = f->zc[m-1];
+        hL = depthOf(f, f->a[m-1]);
+        etaL = zL + hL;
+        uL = velOf(f, f->a[m-1], f->q[m-1]);
+    }
+
+    // --- right state
+    if ( m == nc )
+    {
+        zR = f->z2;
+        etaR = hd2;
+        hR = MAX(0.0, etaR - zR);
+        uR = velOf(f, f->a[nc-1], f->q[nc-1]);
+    }
+    else
+    {
+        zR = f->zc[m];
+        hR = depthOf(f, f->a[m]);
+        etaR = zR + hR;
+        uR = velOf(f, f->a[m], f->q[m]);
+    }
+
+    // --- hydrostatic reconstruction (Audusse et al. 2004)
+    zs = MAX(zL, zR);
+    hLs = MAX(0.0, etaL - zs);
+    hRs = MAX(0.0, etaR - zs);
+    aL = areaOf(f, hLs);
+    aR = areaOf(f, hRs);
+    hllFlux(f, hLs, aL, uL, hRs, aR, uR, &f->fm[m], &f->fq[m], &s);
+
+    // --- an outfall with a flap gate admits no flow into the pipe
+    //     (same rule as link_setFlapGate); its face becomes a wall
+    if ( (m == 0  && f->fm[0]  > 0.0 && isGatedOutfall(f->n1)) ||
+         (m == nc && f->fm[nc] < 0.0 && isGatedOutfall(f->n2)) )
+    {
+        f->fm[m] = 0.0;
+        if ( m == 0 )
+        {
+            f->fq[0] = GRAVITY * momentOf(f, hR);
+            f->cr[0] = 0.0;
+            f->cl[0] = 0.0;
+        }
+        else
+        {
+            f->fq[nc] = GRAVITY * momentOf(f, hL);
+            f->cl[nc] = 0.0;
+            f->cr[nc] = 0.0;
+        }
+        return s;
+    }
+
+    // --- corrections belong to the cell's own side of the face
+    f->cl[m] = (m > 0) ? GRAVITY * (momentOf(f, hL) - momentOf(f, hLs)) : 0.0;
+    f->cr[m] = (m < nc) ? GRAVITY * (momentOf(f, hR) - momentOf(f, hRs)) : 0.0;
+    return s;
+}
+
+//=============================================================================
+
+void setLinkResults(TFvLink* f, double dt)
+//
+//  Purpose: publishes an FV link's state through the usual Link and Conduit
+//           variables so reporting, statistics and mass balance see it.
+//
+{
+    int     c, j = f->link, k = f->conduit, nc = f->nCells;
+    double  aSum = 0.0, hSum = 0.0, aBar, hBar, qBar, v;
+    TXsect* x = &Link[j].xsect;
+
+    for (c = 0; c < nc; c++)
+    {
+        aSum += f->a[c];
+        hSum += depthOf(f, f->a[c]);
+    }
+    aBar = aSum / nc;
+    hBar = hSum / nc;
+
+    // --- reported flow is the time-averaged flow the link delivers: out of
+    //     its downstream face, or out of its upstream face when the net
+    //     movement is upstream. Quality routing treats a conduit as one
+    //     flow plus a storage change (qualrout.c: qIn = |q1| + dV/dt), and
+    //     with the delivered flow that identity holds exactly.
+    if ( f->vIn + f->vOut >= 0.0 ) qBar = f->vOut / dt;
+    else                          qBar = f->vIn / dt;
+
+    Conduit[k].a1 = aBar;
+    Conduit[k].q1 = qBar;
+    Conduit[k].q2 = qBar;
+    Conduit[k].evapLossRate = 0.0;
+    Conduit[k].seepLossRate = 0.0;
+    Conduit[k].fullState = link_getFullState(f->a[0], f->a[nc-1],
+                                             x->aFull);
+    Link[j].newFlow = qBar * f->barrels;
+    Link[j].newDepth = MIN(hBar, x->yFull);
+    Link[j].newVolume = aSum * f->dx * f->barrels;
+    Link[j].dqdh = GRAVITY * dt * aBar / f->length * f->barrels;
+    if ( aBar > f->aEps )
+    {
+        v = qBar / aBar;
+        Link[j].froude = link_getFroude(j, v, hBar);
+        Link[j].flowClass = (Link[j].froude > 1.0) ? SUPCRITICAL :
+                                                     SUBCRITICAL;
+    }
+    else
+    {
+        Link[j].froude = 0.0;
+        Link[j].flowClass = DRY;
+    }
+    Link[j].inletControl = FALSE;
+    Link[j].normalFlow = FALSE;
+    f->dqdh = Link[j].dqdh;
+}
+
+//=============================================================================
+//  Geometry closure (piecewise-linear area, slot or walls above full)
+//=============================================================================
+
+double areaOf(const TFvLink* f, double h)
+{
+    int    k;
+    if ( h <= 0.0 ) return 0.0;
+    if ( h >= f->yFull ) return f->tA[FV_NTAB] + f->wTop * (h - f->yFull);
+    k = (int)(h / f->dy);
+    if ( k >= FV_NTAB ) k = FV_NTAB - 1;
+    return f->tA[k] + f->tW[k] * (h - k * f->dy);
+}
+
+double widthOf(const TFvLink* f, double h)
+{
+    int    k;
+    if ( h >= f->yFull ) return f->wTop;
+    if ( h <= 0.0 ) return f->tW[0];
+    k = (int)(h / f->dy);
+    if ( k >= FV_NTAB ) k = FV_NTAB - 1;
+    return f->tW[k];
+}
+
+double momentOf(const TFvLink* f, double h)
+{
+    int    k;
+    double e;
+    if ( h <= 0.0 ) return 0.0;
+    if ( h >= f->yFull )
+    {
+        e = h - f->yFull;
+        return f->tI[FV_NTAB] + f->tA[FV_NTAB] * e + 0.5 * f->wTop * e * e;
+    }
+    k = (int)(h / f->dy);
+    if ( k >= FV_NTAB ) k = FV_NTAB - 1;
+    e = h - k * f->dy;
+    return f->tI[k] + f->tA[k] * e + 0.5 * f->tW[k] * e * e;
+}
+
+double depthOf(const TFvLink* f, double a)
+{
+    int lo = 0, hi = FV_NTAB, mid;
+    if ( a <= 0.0 ) return 0.0;
+    if ( a >= f->tA[FV_NTAB] )
+        return f->yFull + (a - f->tA[FV_NTAB]) / f->wTop;
+    while ( hi - lo > 1 )
+    {
+        mid = (lo + hi) / 2;
+        if ( f->tA[mid] <= a ) lo = mid;
+        else hi = mid;
+    }
+    return lo * f->dy + (a - f->tA[lo]) / f->tW[lo];
+}
+
+double hradOf(const TFvLink* f, double h)
+{
+    int    k;
+    double e, a;
+    if ( h <= 0.0 ) return 0.0;
+    if ( h >= f->yFull )
+    {
+        if ( f->closed ) return f->tR[FV_NTAB];
+        a = areaOf(f, h);
+        if ( f->tR[FV_NTAB] <= 0.0 ) return 0.0;
+        return a / (f->tA[FV_NTAB] / f->tR[FV_NTAB] + 2.0 * (h - f->yFull));
+    }
+    k = (int)(h / f->dy);
+    if ( k >= FV_NTAB ) k = FV_NTAB - 1;
+    e = (h - k * f->dy) / f->dy;
+    return f->tR[k] + e * (f->tR[k+1] - f->tR[k]);
+}
+
+double velOf(const TFvLink* f, double a, double q)
+{
+    double u;
+    if ( a <= f->aEps ) return 0.0;
+    u = q / a;
+    if ( u >  FV_MAX_VEL ) u =  FV_MAX_VEL;
+    if ( u < -FV_MAX_VEL ) u = -FV_MAX_VEL;
+    return u;
+}
+
+//=============================================================================
+
+void hllFlux(const TFvLink* f, double hL, double aL, double uL,
+             double hR, double aR, double uR, double* fm, double* fq,
+             double* smax)
+//
+//  Purpose: HLL flux for the 1D section-averaged shallow water equations,
+//           U = [A, Q], F = [Q, Q^2/A + g*I1(h)].
+//
+{
+    int    wetL = (aL > f->aEps);
+    int    wetR = (aR > f->aEps);
+    double cL = 0.0, cR = 0.0, sL, sR;
+    double qL = aL * uL, qR = aR * uR;
+    double fLm, fLq, fRm, fRq;
+
+    if ( !wetL && !wetR )
+    {
+        *fm = 0.0;
+        *fq = GRAVITY * 0.5 * (momentOf(f, hL) + momentOf(f, hR));
+        *smax = 0.0;
+        return;
+    }
+    if ( wetL ) cL = sqrt(GRAVITY * aL / widthOf(f, hL));
+    if ( wetR ) cR = sqrt(GRAVITY * aR / widthOf(f, hR));
+    if ( !wetL )
+    {
+        sL = uR - 2.0 * cR;
+        sR = uR + cR;
+    }
+    else if ( !wetR )
+    {
+        sL = uL - cL;
+        sR = uL + 2.0 * cL;
+    }
+    else
+    {
+        sL = MIN(uL - cL, uR - cR);
+        sR = MAX(uL + cL, uR + cR);
+    }
+    fLm = qL;
+    fLq = qL * uL + GRAVITY * momentOf(f, hL);
+    fRm = qR;
+    fRq = qR * uR + GRAVITY * momentOf(f, hR);
+
+    if ( sL >= 0.0 )
+    {
+        *fm = fLm;
+        *fq = fLq;
+    }
+    else if ( sR <= 0.0 )
+    {
+        *fm = fRm;
+        *fq = fRq;
+    }
+    else
+    {
+        *fm = (sR * fLm - sL * fRm + sL * sR * (aR - aL)) / (sR - sL);
+        *fq = (sR * fLq - sL * fRq + sL * sR * (qR - qL)) / (sR - sL);
+    }
+    *smax = MAX(fabs(sL), fabs(sR));
+}
+
+//=============================================================================
+//  Reporting
+//=============================================================================
+
+void fvlink_report()
+//
+//  Purpose: writes a summary table for the FV links to the report file.
+//
+{
+    int     i;
+    double  vEnd, err, base;
+    TFvLink* f;
+
+    if ( NFv == 0 || Frpt.file == NULL ) return;
+    report_writeLine("");
+    report_writeLine("**************************");
+    report_writeLine("Finite-Volume Link Summary");
+    report_writeLine("**************************");
+    report_writeLine("");
+    report_writeLine("                            Cell  Substeps  Substeps"
+                     "     Min   Volume      Floor");
+    report_writeLine("                           Length   per      per Solve"
+                     "  Substep  Balance     Hits");
+    fprintf(Frpt.file, "\n  Link               Cells   %3s     Step       Max"
+                     "      sec     Err %%", UnitSystem == US ? "ft" : "m");
+    report_writeLine("-------------------------------------------------------"
+                     "--------------------------");
+    for (i = 0; i < NFv; i++)
+    {
+        f = &Fv[i];
+        vEnd = Link[f->link].newVolume;
+        base = MAX(f->volIn, MAX(f->vInit, vEnd));
+        base = MAX(base, FUDGE);
+        err = 100.0 * (vEnd - f->vInit - (f->volIn - f->volOut)) / base;
+        fprintf(Frpt.file, "\n  %-16s %7d %8.2f %9.1f %9.0f %8.4f %8.1e %8.0f",
+            Link[f->link].ID, f->nCells, f->dx * UCF(LENGTH),
+            RouteSteps > 0.0 ? f->substeps / RouteSteps : 0.0,
+            f->maxSub,
+            f->minDt < 1.0e9 ? f->minDt : 0.0,
+            err, f->floorHits);
+    }
+    report_writeLine("");
+    report_writeLine("");
+    report_writeLine("  Substeps per Step counts every Picard iteration.");
+    report_writeLine("  Volume Balance Err compares the link's stored volume"
+                     " change with the");
+    report_writeLine("  volume that crossed its two end faces. Floor Hits counts"
+                     " substeps that");
+    report_writeLine("  were raised to the 0.001 sec floor above their"
+                     " stability limit.");
+    for (i = 0; i < NFv; i++)
+    {
+        f = &Fv[i];
+        if ( f->repaired == 0 ) continue;
+        fprintf(Frpt.file, "\n  Link %s: SWMM's area fell as depth rose at %d"
+            " of 256 table depths;", Link[f->link].ID, f->repaired);
+        fprintf(Frpt.file, "\n    those depths were bridged linearly between"
+            " the depths around them.");
+    }
+    report_writeLine("");
+}

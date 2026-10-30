@@ -263,6 +263,9 @@ void project_validate()
     // --- validate street/channel inlets
     inlet_validate();
 
+    // --- validate finite-volume links
+    fvlink_validate();
+
     // --- adjust number of parallel threads to be used
     if ( NumThreads == 0 ) NumThreads = omp_get_max_threads();
     else NumThreads = MIN(NumThreads, omp_get_max_threads());
@@ -278,6 +281,7 @@ void project_close()
 //  Purpose: closes a SWMM project.
 //
 {
+    fvlink_delete();
     deleteObjects();
     deleteHashTables();
 }

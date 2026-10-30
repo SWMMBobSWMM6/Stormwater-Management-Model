@@ -143,7 +143,8 @@ char* SectWords[]          = { ws_TITLE,          ws_OPTION,
                                ws_LID_USAGE,      ws_GWF,
                                ws_ADJUST,         ws_EVENT,
                                ws_STREET,         ws_INLET_USAGE,
-                               ws_INLET,          NULL};
+                               ws_INLET,          ws_FV_LINK,
+                               NULL};
 char* SnowmeltWords[]      = { w_PLOWABLE, w_IMPERV, w_PERV, w_REMOVAL, NULL};
 char* SurchargeWords[]     = { w_EXTRAN, w_SLOT, NULL};
 char* TempKeyWords[]       = { w_TIMESERIES, w_FILE, w_WINDSPEED, w_SNOWMELT,

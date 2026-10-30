@@ -33,6 +33,7 @@ enum  ErrorType {
       ERR_ROUGHNESS            = 113,
       ERR_BARRELS              = 114,
       ERR_SLOPE                = 115,
+      ERR_FV_LINK              = 116,
       ERR_NO_XSECT             = 117,
       ERR_XSECT                = 119,
       ERR_NO_CURVE             = 121,

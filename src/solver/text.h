@@ -458,5 +458,6 @@
 #define  ws_STREET           "[STREET"
 #define  ws_INLET            "[INLET"
 #define  ws_INLET_USAGE      "[INLET_USAGE"
+#define  ws_FV_LINK          "[FV_LINKS"
 
 #endif //TEXT_H
