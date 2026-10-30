@@ -139,6 +139,8 @@ int    DLLEXPORT swmm_getMassBalErr(float *runoffErr, float *flowErr, float *qua
 int    DLLEXPORT swmm_getVersion(void);
 int    DLLEXPORT swmm_getError(char *errMsg, int msgLen);
 int    DLLEXPORT swmm_getWarnings(void);
+int    DLLEXPORT swmm_setSgiOptions(int mode, double theta, int maxTrials);   //SGI
+int    DLLEXPORT swmm_getSgiStats(double v[10]);                              //SGI
 
 int    DLLEXPORT swmm_getCount(int objType);
 void   DLLEXPORT swmm_getName(int objType, int index, char *name, int size);

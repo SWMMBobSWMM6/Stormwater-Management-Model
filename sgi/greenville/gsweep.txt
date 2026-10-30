@@ -1,0 +1,45 @@
+REFERENCE stock fixed 1 s:
+    cont   +2.04%  outflow   4.997  flood  0.925 Mgal  nonconv  92.7%  it/step  7.65  wall  13.1s
+stock fixed 0.5 s vs the 1 s reference (how settled the reference is):
+    cont   +2.50%  outflow   4.817  flood  0.998 Mgal  nonconv  92.6%  it/step  7.64  wall  25.9s
+        links n=209: |peak| med 0.0% p90 0.2% max 50% (>10%: 5% of links) | worst-instant med 0.1% p90 12%
+        nodes n=167: |peak| med 0.0% p90 0.3% max 34% (>10%: 2% of nodes) | worst-instant med 0.0% p90 14%
+
+NATIVE SETTINGS (variable step, 10 s cap), each against the 1 s reference
+  stock: cont   +6.29%  outflow   5.344  flood  0.741 Mgal  nonconv  94.3%  it/step  7.76  wall   1.6s
+        links n=209: |peak| med 0.3% p90 15.5% max 74% (>10%: 22% of links) | worst-instant med 3.9% p90 82%
+        nodes n=167: |peak| med 0.1% p90 10.9% max 74% (>10%: 11% of nodes) | worst-instant med 1.5% p90 62%
+  sgi: cont   -1.12%  outflow   5.234  flood  0.975 Mgal  nonconv  28.4%  it/step 16.61  wall  16.0s
+        links n=209: |peak| med 0.1% p90 24.3% max 109% (>10%: 19% of links) | worst-instant med 2.1% p90 67%
+        nodes n=167: |peak| med 0.0% p90 9.0% max 145% (>10%: 8% of nodes) | worst-instant med 0.9% p90 42%
+         rc=0 cont=-1.120% steps=9524 trials/step=16.61 maxTrials=31 nonConv=2708 linIters/solve=9.8 maxLinIters=23 linRes=1.4e-09 damped=2 directSolves=0 linFail=0
+
+FIXED STEP, each against the 1 s reference
+    5 s stock: cont   +2.20%  outflow   5.369  flood  0.742 Mgal  nonconv  94.8%  it/step  7.76  wall   2.9s
+        links n=209: |peak| med 0.1% p90 5.3% max 246% (>10%: 6% of links) | worst-instant med 0.6% p90 52%
+        nodes n=167: |peak| med 0.0% p90 4.9% max 52% (>10%: 7% of nodes) | worst-instant med 0.3% p90 28%
+    5 s sgi: cont   -1.12%  outflow   5.236  flood  0.972 Mgal  nonconv  19.9%  it/step 14.79  wall  27.2s
+        links n=209: |peak| med 0.1% p90 23.6% max 131% (>10%: 18% of links) | worst-instant med 1.5% p90 64%
+        nodes n=167: |peak| med 0.0% p90 8.3% max 145% (>10%: 7% of nodes) | worst-instant med 1.1% p90 41%
+         rc=0 cont=-1.116% steps=18720 trials/step=14.79 maxTrials=31 nonConv=3715 linIters/solve=8.8 maxLinIters=21 linRes=1.6e-09 damped=0 directSolves=0 linFail=0
+   10 s stock: cont   +6.32%  outflow   5.340  flood  0.741 Mgal  nonconv  94.2%  it/step  7.76  wall   1.6s
+        links n=209: |peak| med 0.3% p90 13.6% max 138% (>10%: 19% of links) | worst-instant med 3.4% p90 86%
+        nodes n=167: |peak| med 0.1% p90 8.9% max 74% (>10%: 10% of nodes) | worst-instant med 1.5% p90 63%
+   10 s sgi: cont   -1.10%  outflow   5.234  flood  0.973 Mgal  nonconv  28.0%  it/step 16.40  wall  15.6s
+        links n=209: |peak| med 0.1% p90 24.6% max 174% (>10%: 20% of links) | worst-instant med 2.1% p90 65%
+        nodes n=167: |peak| med 0.0% p90 8.3% max 145% (>10%: 8% of nodes) | worst-instant med 0.6% p90 41%
+         rc=0 cont=-1.099% steps=9360 trials/step=16.40 maxTrials=31 nonConv=2623 linIters/solve=9.8 maxLinIters=25 linRes=1.4e-09 damped=2 directSolves=0 linFail=0
+   30 s stock: cont   +7.26%  outflow   5.327  flood  0.741 Mgal  nonconv  93.2%  it/step  7.78  wall   0.7s
+        links n=209: |peak| med 0.5% p90 19.2% max 148% (>10%: 26% of links) | worst-instant med 5.7% p90 85%
+        nodes n=167: |peak| med 0.2% p90 12.3% max 85% (>10%: 13% of nodes) | worst-instant med 4.8% p90 62%
+   30 s sgi: cont   -1.08%  outflow   5.299  flood  1.031 Mgal  nonconv  45.1%  it/step 19.59  wall   6.8s
+        links n=209: |peak| med 0.4% p90 29.9% max 7052% (>10%: 22% of links) | worst-instant med 5.7% p90 100%
+        nodes n=167: |peak| med 0.1% p90 10.0% max 1046% (>10%: 10% of nodes) | worst-instant med 1.4% p90 68%
+         rc=0 cont=-1.082% steps=3120 trials/step=19.59 maxTrials=31 nonConv=1407 linIters/solve=13.7 maxLinIters=35 linRes=1.7e-09 damped=51 directSolves=0 linFail=0
+   60 s stock: cont   +8.24%  outflow   5.360  flood  0.740 Mgal  nonconv  91.9%  it/step  7.79  wall   0.5s
+        links n=209: |peak| med 0.8% p90 24.5% max 560% (>10%: 31% of links) | worst-instant med 11.9% p90 100%
+        nodes n=167: |peak| med 0.2% p90 22.0% max 87% (>10%: 23% of nodes) | worst-instant med 8.1% p90 70%
+   60 s sgi: cont   -1.03%  outflow   5.305  flood  1.060 Mgal  nonconv  52.0%  it/step 21.11  wall   4.2s
+        links n=209: |peak| med 0.5% p90 37.0% max 1303% (>10%: 25% of links) | worst-instant med 5.7% p90 100%
+        nodes n=167: |peak| med 0.2% p90 13.5% max 497% (>10%: 12% of nodes) | worst-instant med 2.8% p90 65%
+         rc=0 cont=-1.034% steps=1560 trials/step=21.11 maxTrials=31 nonConv=812 linIters/solve=19.1 maxLinIters=44 linRes=1.5e-09 damped=84 directSolves=0 linFail=0

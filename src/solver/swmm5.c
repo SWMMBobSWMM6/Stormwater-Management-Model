@@ -96,6 +96,7 @@
 #include "text.h"                      // listing of all text strings 
 
 #include "swmm5.h"                     // declaration of SWMM's API functions
+#include "sgi.h"                       // SGI extension
 
 #define  MAX_EXCEPTIONS 100            // max. number of exceptions handled
 
@@ -1719,3 +1720,39 @@ int xfilter(int xc, char* module, double elapsedTime, long step)
     return rc;
 }
 #endif
+
+
+//=============================================================================
+//   SGI extension API
+//=============================================================================
+
+int DLLEXPORT swmm_setSgiOptions(int mode, double theta, int maxTrials)
+//
+//  Input:   mode = 0 for stock dynamic wave, 1 for the implicit head solve
+//           theta = time weight of node continuity (0.5 to 1.0)
+//           maxTrials = max. trials per routing step (<= 0 keeps default)
+//  Purpose: selects the staggered-grid implicit head solve. Call before
+//           swmm_start.
+//
+{
+    Sgi.mode = (mode != 0);
+    if ( theta >= 0.5 && theta <= 1.0 ) Sgi.theta = theta;
+    if ( maxTrials > 0 ) Sgi.maxTrials = maxTrials;
+    return 0;
+}
+
+int DLLEXPORT swmm_getSgiStats(double v[10])
+//
+//  Output:  v = steps, total trials, max trials in a step, non-converged
+//           steps, total linear iterations, max linear iterations in a
+//           solve, largest linear residual (cfs), step-limited node updates,
+//           solves handed to the direct solver, solves that failed outright
+//
+{
+    v[0] = Sgi.steps;        v[1] = Sgi.trials;
+    v[2] = Sgi.maxTrialsUsed; v[3] = Sgi.nonConverged;
+    v[4] = Sgi.pcgIters;     v[5] = Sgi.maxPcgIters;
+    v[6] = Sgi.maxLinResid;  v[7] = Sgi.damped;
+    v[8] = Sgi.fallbacks;    v[9] = Sgi.linFailures;
+    return 0;
+}

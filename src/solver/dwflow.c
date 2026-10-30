@@ -33,6 +33,7 @@
 
 #include <math.h>
 #include "headers.h"
+#include "sgi.h"                                                    //SGI
 
 static const  double MAXVELOCITY =  50.;     // max. allowable velocity (ft/sec)
 
@@ -237,6 +238,7 @@ void  dwflow_findConduitFlow(int j, int steps, double omega, double dt)
 
     // --- combine terms to find new conduit flow
     denom = 1.0 + dq1 + dq5;
+    if ( SgiDenom ) SgiDenom[j] = denom;                               //SGI
     q = (qOld - dq2 + dq3 + dq4 + dq6) / denom;
 
     // --- compute derivative of flow w.r.t. head

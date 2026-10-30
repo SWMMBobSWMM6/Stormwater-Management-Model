@@ -1,0 +1,18 @@
+diff -ruN a/src/solver/dynwave.c b/src/solver/dynwave.c
+--- a/src/solver/dynwave.c	2026-10-02 11:12:42.196735198 +0000
++++ b/src/solver/dynwave.c	2026-10-02 11:18:17.927209266 +0000
+@@ -420,7 +420,13 @@
+         if ( isTrueConduit(i) && !Link[i].bypassed )
+         {
+             if ( Sgi.mode ) sgi_findConduitFlow(i, dt);                    //SGI
+-            else dwflow_findConduitFlow(i, Steps, Omega, dt);
++            else
++            {
++                dwflow_findConduitFlow(i, Steps, Omega, dt);
++                // EXPERIMENT ONLY: apply the two surface-area bookkeeping
++                // rules to the stock solver when STOCK_ENDFULL is set
++                if ( getenv("STOCK_ENDFULL") ) sgi_trimSurfArea(i);
++            }
+         }
+     }
+ }
