@@ -100,6 +100,12 @@ void flowrout_init(int routingModel)
     // --- initialize node & link volumes
     initNodes();
     initLinks(routingModel);
+
+    // --- implicit box-scheme extension (pbox.c) replaces dynamic wave
+    if ( routingModel == DW && PboxMode && !ErrorCode )
+    {
+        if ( pbox_init() ) report_writeErrorMsg(ERR_MEMORY, "");
+    }
 }
 
 //=============================================================================
@@ -112,6 +118,7 @@ void  flowrout_close(int routingModel)
 //
 {
     if ( routingModel == DW ) dynwave_close();
+    if ( routingModel == DW && PboxMode ) pbox_close();
 }
 
 //=============================================================================
@@ -126,6 +133,7 @@ double flowrout_getRoutingStep(int routingModel, double fixedStep)
 {
     if ( routingModel == DW )
     {
+        if ( PboxMode ) return fixedStep;          // implicit: no Courant limit
         return dynwave_getRoutingStep(fixedStep);
     }
     return fixedStep;
@@ -164,6 +172,7 @@ int flowrout_execute(int links[], int routingModel, double tStep)
     // --- execute dynamic wave routing if called for
     if ( routingModel == DW )
     {
+        if ( PboxMode ) return pbox_execute(tStep);
         return dynwave_execute(tStep);
     }
 

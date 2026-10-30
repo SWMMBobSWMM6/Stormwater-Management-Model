@@ -634,6 +634,7 @@ int DLLEXPORT swmm_end(void)
         // --- report mass balance results and system statistics
         if ( !ErrorCode && RptFlags.disabled == 0 )
         {
+            pbox_report();
             massbal_report();
             stats_report();
         }
@@ -1719,3 +1720,32 @@ int xfilter(int xc, char* module, double elapsedTime, long step)
     return rc;
 }
 #endif
+
+//=============================================================================
+//  Implicit box-scheme extension API (modified engine, pbox.c)
+//=============================================================================
+int DLLEXPORT swmm_setPboxOptions(int mode, double theta, double slotFrac,
+                                  double baseFrac, double spacing)
+//  mode:     0 stock dynamic wave (default), 1 implicit Preissmann box scheme
+//  theta:    time weighting 0.5-1.0          (<= 0 keeps the default 0.65)
+//  slotFrac: slot width / conduit width      (<= 0 keeps the default 0.02)
+//  baseFrac: base depth / conduit height     (<  0 keeps the default 0.05)
+//  spacing:  section spacing / conduit width (<= 0 keeps the default 20)
+//  Call before swmm_start. Only acts when FLOW_ROUTING is DYNWAVE.
+{
+    PboxMode = mode ? 1 : 0;
+    if ( theta > 0.0 )     PboxTheta = theta;
+    if ( slotFrac > 0.0 )  PboxSlotFrac = slotFrac;
+    if ( baseFrac >= 0.0 ) PboxBaseFrac = baseFrac;
+    if ( spacing > 0.0 )   PboxSpacing = spacing;
+    return 0;
+}
+
+int DLLEXPORT swmm_getPboxStats(double* v)
+//  v[0..9]: mode, conduits, sections, routing steps, solver steps, mean Newton
+//  iterations, max iterations, step halvings, unconverged steps, links with
+//  features the extension does not model. Valid after swmm_end.
+{
+    pbox_getStats(v);
+    return 0;
+}

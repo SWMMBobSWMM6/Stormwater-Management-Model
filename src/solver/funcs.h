@@ -216,6 +216,20 @@ double  landuse_getAvgBmpEffic(int j, int p);
 double  landuse_getCoPollutLoad(int p, double washoff[]);
 
 //-----------------------------------------------------------------------------
+//   Implicit box-scheme extension (pbox.c)
+//-----------------------------------------------------------------------------
+extern int    PboxMode;
+extern double PboxTheta;
+extern double PboxSlotFrac;
+extern double PboxBaseFrac;
+extern double PboxSpacing;
+int     pbox_init(void);
+void    pbox_close(void);
+int     pbox_execute(double tStep);
+void    pbox_getStats(double* v);
+void    pbox_report(void);
+
+//-----------------------------------------------------------------------------
 //   Flow/Quality Routing Methods
 //-----------------------------------------------------------------------------
 void    flowrout_init(int routingModel);
