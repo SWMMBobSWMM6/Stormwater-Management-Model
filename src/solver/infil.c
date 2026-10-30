@@ -198,6 +198,24 @@ int infil_readParams(int m, char* tok[], int ntoks)
 
 //=============================================================================
 
+void infil_validate(int j)
+//
+//  Input:   j = subcatchment index
+//  Output:  none
+//  Purpose: checks a subcatchment's infiltration parameters, issuing a
+//           warning when a Curve Number was limited to the range 10 - 99.
+//
+{
+    TCurveNum* cn;
+
+    if ( Subcatch[j].infilModel != CURVE_NUMBER ) return;
+    cn = &Infil[j].curveNum;
+    if ( cn->CN < 10.0 || cn->CN > 99.0 )
+        report_writeWarningMsg(WARN13, Subcatch[j].ID);
+}
+
+//=============================================================================
+
 void infil_initState(int j)
 //
 //  Input:   j = subcatchment index
@@ -867,6 +885,9 @@ int curvenum_setParams(TCurveNum *infil, double p[])
 //
 {
 
+    // --- save Curve Number as entered (checked by infil_validate)
+    infil->CN = p[0];
+
     // --- convert Curve Number to max. infil. capacity
     if ( p[0] < 10.0 ) p[0] = 10.0;
     if ( p[0] > 99.0 ) p[0] = 99.0;
@@ -987,12 +1008,11 @@ double curvenum_getInfil(TCurveNum *infil, double tstep, double irate,
         // --- update actual cumulative infiltration
         infil->F += f1 * tstep;
 
-        // --- reduce infil. capacity if a regen. constant was supplied
-        if ( infil->regen > 0.0 )
-        {
-            infil->S -= f1 * tstep;
-            if ( infil->S < 0.0 ) infil->S = 0.0;
-        }
+        // --- reduce infil. capacity
+        //     (curvenum_setParams rejects a drying time <= 0,
+        //      so a regeneration constant is always present)
+        infil->S -= f1 * tstep;
+        if ( infil->S < 0.0 ) infil->S = 0.0;
     }
 
     // --- otherwise regenerate infil. capacity
